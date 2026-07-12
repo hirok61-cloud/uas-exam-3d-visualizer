@@ -81,6 +81,16 @@
   .chip.d.act{background:#c79a00;}
   .chip.p.act{background:#1f8a4c;}
   #hud .zfoot{font-size:10px; opacity:.65; margin-top:5px;}
+  #infoToggle{
+    pointer-events:auto; cursor:pointer; border:none; border-radius:6px;
+    background:rgba(255,255,255,.16); color:#fff; font-size:11px; font-weight:700;
+    padding:5px 10px; margin-bottom:8px; display:inline-block;
+  }
+  #infoToggle:active{background:rgba(255,255,255,.32);}
+  #hud.collapsed{padding:8px 10px; min-width:0; max-width:none;}
+  #hud.collapsed #hudBody{display:none;}
+  #hud.collapsed #infoToggle{margin-bottom:0;}
+  #legend.collapsed{display:none;}
   #emg{
     position:absolute; top:12px; right:12px; padding:8px 16px; border-radius:8px;
     background:var(--danger); color:#fff; font-weight:700; font-size:14px; display:none;
@@ -167,6 +177,8 @@
   <div id="stageBox">
     <canvas id="stage"></canvas>
     <div id="hud">
+      <button id="infoToggle" onclick="toggleInfo()" aria-label="解説パネルの表示切替">✕ 解説を隠す</button>
+      <div id="hudBody">
       <div class="sc" id="hudTitle">－</div>
       <div class="cls" id="hudClass">－</div>
       <div class="phase" id="hudPhase">「▶ 再生」で開始します</div>
@@ -181,6 +193,7 @@
         <span class="chip p" id="chipP">着陸・ホバリング区画 <b id="chipPv">－</b></span>
       </div>
       <div class="zfoot" id="zfoot">濃く点灯している区画のみが現在のフェーズで適用中</div>
+      </div>
     </div>
     <div id="emg">⚠ 緊急事態発生</div>
     <div id="pipLabel">機体カメラ映像（受験者はこの画像のみで操縦）</div>
@@ -1061,6 +1074,16 @@ function loop(now){
     lbl.style.bottom=(vh+12)+'px';
   }
 }
+
+function toggleInfo(){
+  const hud=document.getElementById('hud');
+  const legend=document.getElementById('legend');
+  const btn=document.getElementById('infoToggle');
+  const collapsed=hud.classList.toggle('collapsed');
+  legend.classList.toggle('collapsed', collapsed);
+  btn.textContent = collapsed ? '☰ 解説を表示' : '✕ 解説を隠す';
+}
+if(window.matchMedia('(max-width:760px)').matches){ toggleInfo(); }
 
 // ---------- 初期化 ----------
 renderScenarioButtons();
