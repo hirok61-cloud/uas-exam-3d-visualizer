@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>無人航空機操縦士 実地試験 3Dフライトビジュアライザー（回転翼航空機・マルチローター）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --navy:#17335f; --navy-d:#0f2547; --teal:#0e6e63; --teal-d:#0a5049;
+    --ink:#1c2430; --paper:#f2f4f7; --line:#d5dbe4;
+    --warn:#f2b705; --danger:#d63a2f; --ok:#2e8b57;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Meiryo","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--paper); color:var(--ink); line-height:1.7;
+  }
+  header.doc{
+    background:linear-gradient(135deg,var(--navy-d),var(--navy));
+    color:#fff; padding:26px 28px 20px;
+  }
+  header.doc .kicker{font-size:11px; letter-spacing:.18em; opacity:.75; margin-bottom:6px;}
+  header.doc h1{font-size:21px; font-weight:700; letter-spacing:.02em;}
+  header.doc .sub{font-size:12.5px; opacity:.85; margin-top:6px;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 16px 60px;}
+
+  /* ------- control bar ------- */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; margin-top:18px; overflow:hidden;}
+  .tabs{display:flex; border-bottom:1px solid var(--line);}
+  .tabs button{
+    flex:1; padding:12px 10px; font-size:15px; font-weight:700; border:none; cursor:pointer;
+    background:#eef1f5; color:#5a6472; font-family:inherit; transition:.15s;
+  }
+  .tabs button.on1{background:var(--navy); color:#fff;}
+  .tabs button.on2{background:var(--teal); color:#fff;}
+  .scenarios{padding:10px 14px 12px;}
+  .scat{font-size:11.5px; font-weight:700; color:#6b7583; margin:8px 0 5px; letter-spacing:.05em;}
+  .scat:first-child{margin-top:0;}
+  .srow{display:flex; flex-wrap:wrap; gap:7px;}
+  .srow button{
+    font-family:inherit; font-size:12.5px; padding:8px 13px; border-radius:18px; cursor:pointer;
+    border:1.5px solid var(--line); background:#fff; color:var(--ink); transition:.15s;
+  }
+  .srow button.sel{color:#fff; border-color:transparent;}
+  .cls1 .srow button.sel{background:var(--navy);}
+  .cls2 .srow button.sel{background:var(--teal);}
+  .playbar{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    padding:10px 14px; border-top:1px dashed var(--line); background:#fafbfc; font-size:12.5px;
+  }
+  .playbar button{
+    font-family:inherit; font-size:13px; padding:7px 16px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:#fff;
+  }
+  .playbar button.primary{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:700;}
+  .playbar select{font-family:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:#fff;}
+  .playbar .spacer{flex:1;}
+  .hint{font-size:11.5px; color:#6b7583;}
+
+  /* ------- 3D stage ------- */
+  #stageBox{position:relative; margin-top:14px; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#0b1626;}
+  #stage{width:100%; height:580px; display:block; touch-action:none; cursor:grab;}
+  #hud{
+    position:absolute; top:12px; left:12px; min-width:260px; max-width:360px;
+    background:rgba(12,22,40,.84); color:#fff; border-radius:8px; padding:12px 14px;
+    font-size:12.5px; backdrop-filter:blur(3px); pointer-events:none;
+  }
+  #hud .sc{font-size:13.5px; font-weight:700; margin-bottom:2px;}
+  #hud .cls{font-size:11px; opacity:.8; margin-bottom:7px;}
+  #hud .phase{font-size:12.5px; font-weight:700; color:#ffd76a; min-height:38px;}
+  #hud .row{display:flex; gap:12px; margin-top:7px; flex-wrap:wrap;}
+  #hud .metric b{font-size:15px;}
+  .badge{display:inline-block; padding:1px 9px; border-radius:10px; font-size:11px; font-weight:700;}
+  .badge.on{background:var(--ok);} .badge.off{background:#e07b00;}
+  #zoneChips{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
+  .chip{font-size:10.5px; padding:2px 8px; border-radius:4px; border:1px solid rgba(255,255,255,.35); opacity:.45;}
+  .chip b{font-weight:700;}
+  .chip.act{opacity:1; border-color:transparent; font-weight:700;}
+  .chip.f.act{background:var(--danger);}
+  .chip.d.act{background:#c79a00;}
+  .chip.p.act{background:#1f8a4c;}
+  #hud .zfoot{font-size:10px; opacity:.65; margin-top:5px;}
+  #emg{
+    position:absolute; top:12px; right:12px; padding:8px 16px; border-radius:8px;
+    background:var(--danger); color:#fff; font-weight:700; font-size:14px; display:none;
+    animation:blink .6s infinite alternate; pointer-events:none;
+  }
+  @keyframes blink{from{opacity:1}to{opacity:.45}}
+  #legend{
+    position:absolute; bottom:10px; left:12px; background:rgba(255,255,255,.9);
+    border-radius:6px; padding:6px 12px; font-size:11px; color:#333; display:flex; gap:13px; pointer-events:none; flex-wrap:wrap;
+  }
+  #legend i{display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:-1px; margin-right:4px;}
+  #pipLabel{
+    position:absolute; right:12px; font-size:11px; font-weight:700; color:#fff;
+    background:rgba(12,22,40,.85); padding:3px 10px; border-radius:5px 5px 0 0; display:none; pointer-events:none;
+  }
+
+  /* ------- comparison ------- */
+  h2.sec{ margin:42px 0 6px; font-size:18px; padding-left:12px; border-left:6px solid var(--navy);}
+  h2.sec.t2{border-left-color:var(--teal);}
+  h2.sec.tz{border-left-color:var(--warn);}
+  p.lede{font-size:13.5px; color:#414c5b; margin-bottom:12px;}
+  table.cmp{width:100%; border-collapse:collapse; background:#fff; font-size:13px; border:1px solid var(--line);}
+  table.cmp th, table.cmp td{border:1px solid var(--line); padding:9px 12px; vertical-align:top;}
+  table.cmp thead th{color:#fff; font-size:13.5px;}
+  table.cmp thead th:nth-child(1){background:#454f5e; width:17%;}
+  table.cmp thead th.c1{background:var(--navy); width:41.5%;}
+  table.cmp thead th.c2{background:var(--teal); width:41.5%;}
+  table.cmp tbody th{background:#f5f7fa; text-align:left; font-weight:700; font-size:12.5px;}
+  table.zone{width:100%; border-collapse:collapse; background:#fff; font-size:12.5px; border:1px solid var(--line);}
+  table.zone th, table.zone td{border:1px solid var(--line); padding:8px 10px; text-align:center;}
+  table.zone thead th{background:#454f5e; color:#fff; font-size:12px;}
+  table.zone tbody th{background:#f5f7fa; text-align:left; font-weight:700;}
+  table.zone td.on{color:var(--danger); font-weight:700; font-size:14px;}
+  .tag1{color:var(--navy); font-weight:700;} .tag2{color:var(--teal); font-weight:700;}
+  .pt{color:var(--danger); font-weight:700;}
+  .note{font-size:11.5px; color:#6b7583; margin-top:8px;}
+  .keybox{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-top:10px; font-size:13.5px;}
+  .keybox b.big{font-size:15px;}
+  @media (max-width:760px){ #stage{height:430px;} header.doc h1{font-size:17px;} }
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="kicker">無人航空機操縦者技能証明　実地試験実施細則（回転翼航空機・マルチローター）｜令和7年12月5日改正反映</div>
+  <h1>一等・二等 無人航空機操縦士 実地試験　3Dフライトビジュアライザー</h1>
+  <div class="sub">実技試験の全科目（基本＋夜間・目視外・25kg以上の限定変更）の飛行経路・高度・機首方向・緊急操作を3Dアニメーションで再現。減点区画・不合格区画は飛行フェーズに応じて明滅し、「いま適用されている区画」が一目で分かります。ドラッグで視点回転、ホイール／ピンチで拡大縮小。</div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== controls ===== -->
+  <div class="panel cls1" id="panel">
+    <div class="tabs">
+      <button id="tab1" class="on1" onclick="setClass(1)">一等（合格：80点以上）</button>
+      <button id="tab2" onclick="setClass(2)">二等（合格：70点以上）</button>
+    </div>
+    <div class="scenarios" id="scButtons"></div>
+    <div class="playbar">
+      <button class="primary" id="btnPlay" onclick="togglePlay()">▶ 再生</button>
+      <button onclick="resetAnim()">⟲ 最初から</button>
+      <label>速度
+        <select id="speed" onchange="SPEED=parseFloat(this.value)">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <label>視点
+        <select id="viewSel" onchange="setView(this.value)">
+          <option value="bird">俯瞰</option>
+          <option value="candidate">受験者視点</option>
+          <option value="side">側面</option>
+          <option value="follow">機体追従</option>
+        </select>
+      </label>
+      <div class="spacer"></div>
+      <span class="hint">区画はフェーズにより適用が変化します（適用中＝濃く表示／対象外＝薄く表示）</span>
+    </div>
+  </div>
+
+  <!-- ===== 3D stage ===== -->
+  <div id="stageBox">
+    <canvas id="stage"></canvas>
+    <div id="hud">
+      <div class="sc" id="hudTitle">－</div>
+      <div class="cls" id="hudClass">－</div>
+      <div class="phase" id="hudPhase">「▶ 再生」で開始します</div>
+      <div class="row">
+        <span class="metric">高度 <b id="hudAlt">0.0</b> m</span>
+        <span class="metric">経過 <b id="hudTime">0:00</b></span>
+        <span>位置安定機能 <span class="badge" id="hudGnss">－</span></span>
+      </div>
+      <div id="zoneChips">
+        <span class="chip f" id="chipF">不合格区画 <b id="chipFv">－</b></span>
+        <span class="chip d" id="chipD">減点区画 <b id="chipDv">－</b></span>
+        <span class="chip p" id="chipP">着陸・ホバリング区画 <b id="chipPv">－</b></span>
+      </div>
+      <div class="zfoot" id="zfoot">濃く点灯している区画のみが現在のフェーズで適用中</div>
+    </div>
+    <div id="emg">⚠ 緊急事態発生</div>
+    <div id="pipLabel">機体カメラ映像（受験者はこの画像のみで操縦）</div>
+    <div id="legend">
+      <span><i style="background:#f2b705"></i>減点区画（進入で5点減点）</span>
+      <span><i style="background:#d63a2f"></i>不合格区画（進入で不合格）</span>
+      <span><i style="background:#2f9a5c"></i>着陸・ホバリング区画（逸脱で5点減点）</span>
+      <span><i style="background:#2f7bd9"></i>飛行経路／軌跡</span>
+      <span><i style="background:#555"></i>▲＝機首方向</span>
+    </div>
+  </div>
+
+  <!-- ===== 区画のフェーズ別適用 ===== -->
+  <h2 class="sec tz">減点区画・不合格区画のフェーズ別適用</h2>
+  <p class="lede">区画は常に有効なのではなく、<b>飛行フェーズごとに適用の有無が切り替わります</b>。緊急着陸を伴う科目（一等：8の字・円周／二等：異常事態における飛行）については細則に次の表が明記されています。ビジュアライザーではこの表に沿って区画を明滅させています。</p>
+  <table class="zone">
+    <thead><tr>
+      <th style="width:30%">飛行フェーズ</th>
+      <th>飛行空域逸脱<br>（不合格区画）</th>
+      <th>飛行経路逸脱<br>（減点区画）</th>
+      <th>飛行経路逸脱<br>（ホバリング・着陸時の定められた区画※）</th>
+    </tr></thead>
+    <tbody>
+      <tr><th>離陸 〜 離陸地点上空（ホバリング位置までの飛行）</th><td>－</td><td>－</td><td>－</td></tr>
+      <tr><th>ホバリング時</th><td>－</td><td>－</td><td class="on">○</td></tr>
+      <tr><th>ホバリング終了後 〜 緊急着陸の指示までの飛行</th><td class="on">○</td><td class="on">○</td><td>－</td></tr>
+      <tr><th>緊急着陸の指示後 〜 着陸地点上空までの飛行</th><td class="on">○</td><td>－<br><span style="font-size:10.5px">（緊急着陸時は減点区画無効）</span></td><td>－</td></tr>
+      <tr><th>着陸地点上空 〜 着陸までの飛行</th><td>－</td><td>－</td><td class="on">○</td></tr>
+    </tbody>
+  </table>
+  <p class="note">※ 定められた区画＝離着陸地点中心から<b>直径2m</b>（25kg以上の限定変更のみ<b>直径5m</b>）の円。機体の半分以上の逸脱で5点減点。<br>
+  そのほかの主な適用例外：
+  ①スクエア飛行・異常事態における飛行では<b>離着陸地点（H）⇄A地点間の移動時は減点区画無効</b>　
+  ②減点区画への<b>飛行区画ごとの初回進入</b>は、通知後概ね2秒以内に経路復帰すれば減点なし　
+  ③<b>目視外飛行のホバリング時は不合格区画を設定しない</b>（一等・二等の目視内限定変更）　
+  ④一等ピルエットホバリングは離発着場中心から半径1.5m（減点）・2.5m（不合格）の同心円で判定（25kg以上は2.5m／6m）。</p>
+
+  <!-- ===== comparison ===== -->
+  <h2 class="sec">一等と二等の違い（総括）</h2>
+  <p class="lede">最大の違いは<b>想定する飛行の前提</b>です。二等は「立入管理措置を講じた上で」（第三者が立ち入らない環境）、一等は「立入管理措置を講ずることなく」（第三者上空を含む、いわゆるカテゴリーⅢ相当）の飛行を安全に行える能力を確認します。このため一等は合格基準・操縦難度とも一段高く設定されています。</p>
+
+  <div class="keybox">
+    <b class="big">ひとことで言うと：</b>　二等＝<span class="tag2">位置安定機能ON（自動安定あり）での確実な基本操縦</span>＋異常時対応、一等＝<span class="tag1">基本科目からGNSS等OFF（手動安定化）</span>で、高度変化・ピルエット・緊急着陸を含む<span class="tag1">より高精度な操縦</span>が要求されます。
+  </div>
+
+  <table class="cmp" style="margin-top:14px">
+    <thead><tr><th>項目</th><th class="c1">一等無人航空機操縦士</th><th class="c2">二等無人航空機操縦士</th></tr></thead>
+    <tbody>
+      <tr><th>想定する飛行</th>
+        <td>立入管理措置<b>なし</b>で行う飛行（第三者上空を含む）を安全に実施する能力を確認</td>
+        <td>立入管理措置<b>あり</b>で行う飛行を安全に実施する能力を確認</td></tr>
+      <tr><th>合格基準</th>
+        <td>100点持ち点の減点式で<span class="pt">80点以上</span></td>
+        <td>100点持ち点の減点式で<span class="pt">70点以上</span></td></tr>
+      <tr><th>位置安定機能<br>（GNSS・ビジョンセンサー等）</th>
+        <td><b>基本科目からすべてOFF</b>（手動での位置保持が前提）<br>※目視外限定変更のスクエア飛行のみON</td>
+        <td>基本はスクエア・8の字とも<b>ON</b>。<br>「異常事態における飛行」のみOFF</td></tr>
+      <tr><th>実技科目（基本）</th>
+        <td>① 高度変化を伴うスクエア飛行（1.5m⇄3.5m）＜6分＞<br>② ピルエットホバリング（約20秒で1回転）＜3分＞<br>③ 緊急着陸を伴う8の字飛行＜5分＞</td>
+        <td>① スクエア飛行（高度3.5m一定）＜8分＞<br>② 8の字飛行（連続2周）＜8分＞<br>③ 異常事態における飛行（直線往復＋緊急着陸）＜6分＞</td></tr>
+      <tr><th>高度変化・回転操作</th>
+        <td>スクエア飛行中の上昇・下降、ピルエット（16秒未満／26秒以上は減点）など<b>複合操作あり</b></td>
+        <td>基本科目では一定高度。回転（ピルエット）科目は<b>なし</b></td></tr>
+      <tr><th>緊急事態対応</th>
+        <td>GNSS等OFFの<b>8の字飛行中</b>に緊急事態→その場ホバリング→高度維持のまま最短経路で緊急着陸</td>
+        <td>GNSS等OFFの<b>直線飛行中</b>（機首固定の側方移動）に緊急事態→同様に緊急着陸</td></tr>
+      <tr><th>机上試験</th>
+        <td>5問／10分（誤答・未回答は1問5点減点）</td>
+        <td>4問／5分（同左）</td></tr>
+      <tr><th>風速計測</th>
+        <td>各科目開始前に必ず計測</td>
+        <td>密閉建築物等の明らかに風の影響がない屋内では計測不要</td></tr>
+      <tr><th>共通事項</th>
+        <td colspan="2">試験構成（机上→口述〔飛行前点検〕→実技→口述〔飛行後点検・記録〕→口述〔事故・重大インシデント〕※基本のみ）、一発不合格項目（墜落・衝突・制御不能、不合格区画進入、制限時間超過、危険な飛行、不正行為等）、減点区画進入5点・ふらつき等1点といった減点体系は両等級で共通</td></tr>
+    </tbody>
+  </table>
+  <p class="note">※ 本改正（国空無機第298768号）は令和8年6月5日施行。第Ⅶ章の準用規定により、登録講習機関の修了審査にも読み替えのうえ適用されます。</p>
+
+  <h2 class="sec t2">限定変更（夜間・目視外・25kg以上）の違い</h2>
+  <table class="cmp">
+    <thead><tr><th>限定変更</th><th class="c1">一等</th><th class="c2">二等</th></tr></thead>
+    <tbody>
+      <tr><th>昼間飛行の限定変更<br>（夜間・150ルクス以下）</th>
+        <td>高度変化を伴うスクエア飛行＋緊急着陸を伴う8の字飛行（いずれもGNSS等OFF）</td>
+        <td>スクエア飛行（ON）＋異常事態における飛行（OFF）</td></tr>
+      <tr><th>目視内飛行の限定変更<br>（目視外・カメラ画像のみ）</th>
+        <td>スクエア飛行（ON・高度2.5m→3.5mの変化あり）＋異常事態における飛行：目視外ホバリング10秒後、カメラで安全確認しながら<b>左右いずれかの緊急着陸地点へ移動して着陸</b>（OFF）</td>
+        <td>スクエア飛行（ON・高度一定）＋異常事態における飛行：目視外ホバリング10秒後、<b>目視内に戻って着陸</b>（OFF）</td></tr>
+      <tr><th>最大離陸重量25kg未満の<br>限定変更（25kg以上機体）</th>
+        <td>高度5m⇄10mのスクエア＋ピルエットホバリング＋緊急着陸を伴う円周飛行（正2周＋逆1周以上、直径約10m）／すべてGNSS等OFF、減点区画2.5m・不合格区画6m・着陸区画直径5m</td>
+        <td>スクエア（高度5m一定・ON）＋円周飛行（正逆各2周・ON）＋異常事態における飛行（OFF）／減点区画2.5m・不合格区画6m・着陸区画直径5m</td></tr>
+    </tbody>
+  </table>
+  <p class="note">※ 図・寸法・タイミングは細則の記載をもとにした概念図であり、実際の試験実施要領・採点は原文（実地試験実施細則）が優先されます。夜間シナリオは150ルクス以下の暗所を、目視外シナリオは機体カメラ映像（画面右下）を再現しています。</p>
+
+<script>
+"use strict";
+/* ============================================================
+   無人航空機操縦士 実地試験 3D ビジュアライザー v2
+   ・区画のフェーズ別適用（○/−表準拠）
+   ・8の字／円周の区画形状を細則図面準拠に修正
+   ・限定変更（夜間・目視外・25kg以上）シナリオ追加
+============================================================ */
+
+// 座標系: x=右, z=手前(受験者側)+, y=高さ
+const SQ = { H:[0,-2.5], A:[0,0], B:[6.5,0], C:[6.5,-5], D:[-6.5,-5], E:[-6.5,0] };
+const PI = Math.PI;
+
+/* 区画フラグ z:{f,d,p:[x,z]|null, hv:[x,z]|null}
+   f=不合格区画適用, d=減点区画適用, p=着陸・ホバリング区画(定められた区画),
+   hv=目視外ホバリング用の減点円 */
+
+// ---------- スクエア科目ジェネレータ ----------
+function sqSegments(altLow, altHigh, climb, opts={}){
+  const s=[]; const bv=opts.bvlos;
+  s.push({t:'takeoff', p:SQ.H, h:altLow, dur:3, z:{},
+    label:(bv?'目視内で':'')+'離陸（H地点）→ 高度'+altLow+'mまで上昇'});
+  s.push({t:'hover', p:SQ.H, h:altLow, dur:5, z:{p:SQ.H}, label:'5秒間ホバリング（H直上・定められた区画内）'});
+  if(bv) s.push({t:'hover', p:SQ.H, h:altLow, dur:3, z:{p:SQ.H},
+    label:'試験員の指示：受験者は機体が見えない状態に → 以後カメラ画像のみで操縦'});
+  s.push({t:'move', a:[...SQ.H,altLow], b:[...SQ.A,altLow], dur:2.5, yaw:'travel', z:{f:1},
+    label:'H → A へ移動（この区間は減点区画が無効）'});
+  s.push({t:'move', a:[...SQ.A,altLow], b:[...SQ.B,altLow], dur:5, yaw:'travel', z:{f:1,d:1},
+    label:'A → B（機首は常に進行方向／減点・不合格区画とも適用中）'});
+  if(climb){
+    s.push({t:'move', a:[...SQ.B,altLow], b:[...SQ.C,altHigh], dur:6, yaw:'travel', z:{f:1,d:1},
+      label:'B → C：'+altLow+'m→'+altHigh+'mへ上昇しながら移動'});
+    s.push({t:'move', a:[...SQ.C,altHigh], b:[...SQ.D,altHigh], dur:8, yaw:'travel', z:{f:1,d:1},
+      label:'C → D（高度'+altHigh+'mを維持）'});
+    s.push({t:'move', a:[...SQ.D,altHigh], b:[...SQ.E,altLow], dur:6, yaw:'travel', z:{f:1,d:1},
+      label:'D → E：'+altHigh+'m→'+altLow+'mへ下降しながら移動'});
+  }else{
+    s.push({t:'move', a:[...SQ.B,altLow], b:[...SQ.C,altLow], dur:5, yaw:'travel', z:{f:1,d:1}, label:'B → C（高度一定）'});
+    s.push({t:'move', a:[...SQ.C,altLow], b:[...SQ.D,altLow], dur:8, yaw:'travel', z:{f:1,d:1}, label:'C → D'});
+    s.push({t:'move', a:[...SQ.D,altLow], b:[...SQ.E,altLow], dur:5, yaw:'travel', z:{f:1,d:1}, label:'D → E'});
+  }
+  s.push({t:'move', a:[...SQ.E,altLow], b:[...SQ.A,altLow], dur:5, yaw:'travel', z:{f:1,d:1}, label:'E → A'});
+  s.push({t:'move', a:[...SQ.A,altLow], b:[...SQ.H,altLow], dur:2.5, yaw:'travel', z:{f:1},
+    label:'A → H 上空へ戻る（減点区画は無効）'});
+  s.push({t:'land', p:SQ.H, h:altLow, dur:3, z:{p:SQ.H},
+    label:(bv?'機体を見ない状態で':'')+'着陸（定められた区画内に接地）'});
+  return s;
+}
+
+// ---------- 8の字アーク ----------
+function arc(circle, a0, a1, dur, label, z){
+  return {t:'arc', c:(circle==='R'?[2.5,0]:[-2.5,0]), r:2.5, a0, a1, h:1.5, dur, yaw:'travel', label, z:z||{f:1,d:1}};
+}
+
+// ---------- 二等系・直線異常事態ジェネレータ ----------
+function lineEmergency(alt, opts={}){
+  const s=[];
+  s.push({t:'takeoff', p:SQ.H, h:alt, dur:3.5, z:{}, label:'GNSS等OFFで離陸 → 高度'+alt+'mまで上昇'});
+  s.push({t:'hover', p:SQ.H, h:alt, dur:5, z:{p:SQ.H}, label:'5秒間ホバリング'});
+  s.push({t:'move', a:[...SQ.H,alt], b:[...SQ.A,alt], dur:2.5, yaw:'fixed', z:{f:1},
+    label:'H → A へ移動（減点区画は無効）'});
+  s.push({t:'move', a:[...SQ.A,alt], b:[6.5,0,alt], dur:5, yaw:'fixed', z:{f:1,d:1},
+    label:'A → B：機首は前方固定のまま側方へ移動'});
+  s.push({t:'move', a:[6.5,0,alt], b:[-6.5,0,alt], dur:9.5, yaw:'fixed', z:{f:1,d:1},
+    label:'1往復目（往路）B → E：側方移動を継続'});
+  s.push({t:'move', a:[-6.5,0,alt], b:[6.5,0,alt], dur:9.5, yaw:'fixed', z:{f:1,d:1},
+    label:'1往復目（復路）E → B：これで1往復（B→E→B）完了'});
+  s.push({t:'move', a:[6.5,0,alt], b:[-2,0,alt], dur:6.5, yaw:'fixed', z:{f:1,d:1},
+    label:'2往復目 B → E方向へ移動中…'});
+  s.push({t:'hover', p:[-2,0], h:alt, dur:3.5, emg:true, z:{f:1,d:1},
+    label:'緊急事態発生の宣言！ → 直線飛行を中断し、その場でホバリング'});
+  s.push({t:'move', a:[-2,0,alt], b:[...SQ.H,alt], dur:3.5, yaw:'fixed', emg:true, z:{f:1},
+    label:'緊急着陸の指示 → 高度維持のまま最短経路で指定着陸地点（H・離着陸地点）へ【緊急着陸時は減点区画無効】'});
+  s.push({t:'land', p:SQ.H, h:alt, dur:3.5, emg:true, z:{p:SQ.H}, label:'緊急着陸（H地点・定められた区画内に接地）'});
+  return s;
+}
+
+// ---------- 円周飛行（25kg）ジェネレータ ----------
+function circleSegs(cls){ // 中心(0,0) r=5, H=(0,5)
+  const s=[];
+  s.push({t:'takeoff', p:[0,5], h:5, dur:4, z:{}, label:'離陸（H地点）→ 高度5mまで上昇'});
+  s.push({t:'hover', p:[0,5], h:5, dur:5, z:{p:[0,5]}, label:'5秒間ホバリング（直径5mの区画内）'});
+  s.push({t:'arc', c:[0,0], r:5, a0:PI/2, a1:PI/2+4*PI, h:5, dur:22, yaw:'travel', z:{f:1,d:1},
+    label:'円周飛行：機首を進行方向に向けて連続2周（円直径約10m）'});
+  if(cls===1){
+    s.push({t:'arc', c:[0,0], r:5, a0:PI/2, a1:PI/2-2.5*PI, h:5, dur:14, yaw:'travel', z:{f:1,d:1},
+      label:'機首を逆方向に向け、逆回りの円周飛行を1周以上継続…'});
+    s.push({t:'hover', p:[5,0], h:5, dur:3.5, emg:true, z:{f:1,d:1},
+      label:'緊急事態発生の宣言！ → 円周飛行を中断し、その場でホバリング'});
+    s.push({t:'move', a:[5,0,5], b:[0,5,5], dur:4, yaw:'travel', emg:true, z:{f:1},
+      label:'緊急着陸の指示 → 高度維持のまま最短経路で指定着陸地点（H・離着陸地点）へ【緊急着陸時は減点区画無効】'});
+    s.push({t:'land', p:[0,5], h:5, dur:4, emg:true, z:{p:[0,5]}, label:'緊急着陸（H地点・直径5mの区画内に接地）'});
+  }else{
+    s.push({t:'arc', c:[0,0], r:5, a0:PI/2, a1:PI/2-4*PI, h:5, dur:22, yaw:'travel', z:{f:1,d:1},
+      label:'機首を逆方向に向け、逆回りの円周飛行を連続2周'});
+    s.push({t:'hover', p:[0,5], h:5, dur:2, z:{p:[0,5]}, label:'完了 → 着陸準備'});
+    s.push({t:'land', p:[0,5], h:5, dur:4, z:{p:[0,5]}, label:'着陸（直径5mの区画内に接地）'});
+  }
+  return s;
+}
+
+// ---------- シナリオ一覧 ----------
+const SCENARIOS = {
+ 1:[
+  { cat:'基本', name:'① 高度変化を伴うスクエア飛行', gnss:'OFF', limit:'制限6分',
+    course:'square', stand:8.5, cam:26, padR:1, segs: sqSegments(1.5,3.5,true) },
+  { cat:'基本', name:'② ピルエットホバリング', gnss:'OFF', limit:'制限3分',
+    course:'pirouette', geom:{d:1.5,f:2.5}, stand:6.5, cam:18, padR:1,
+    segs:[
+      {t:'takeoff', p:[0,0], h:3.5, dur:4, z:{}, label:'離陸 → 高度3.5mまで上昇'},
+      {t:'hover', p:[0,0], h:3.5, dur:5, z:{f:1,d:1}, label:'5秒間ホバリング（半径1.5m／2.5mの同心円で判定）'},
+      {t:'rotate', p:[0,0], h:3.5, dur:20, turns:1, z:{f:1,d:1},
+        label:'試験員の指示方向へ約20秒かけて1回転（16秒未満・26秒以上は減点）'},
+      {t:'hover', p:[0,0], h:3.5, dur:2, z:{f:1,d:1}, label:'回転完了'},
+      {t:'land', p:[0,0], h:3.5, dur:4, z:{p:[0,0]}, label:'着陸'}
+    ]},
+  { cat:'基本', name:'③ 緊急着陸を伴う8の字飛行', gnss:'OFF', limit:'制限5分',
+    course:'fig8', stand:6.5, cam:22, padR:1, emgPad:[0,0],
+    segs:[
+      {t:'takeoff', p:[0,0], h:1.5, dur:3, z:{}, label:'離陸 → 高度1.5mまで上昇【区画はまだ適用外】'},
+      {t:'hover', p:[0,0], h:1.5, dur:5, z:{p:[0,0]}, label:'5秒間ホバリング【定められた区画のみ適用】'},
+      arc('R', PI, -PI, 11, '8の字飛行：右円（機首は進行方向）【不合格・減点区画とも適用開始】'),
+      arc('L', 0, 2*PI, 11, '8の字飛行：左円（1周目完了へ）'),
+      arc('R', PI, PI/2, 4, '8の字飛行を継続中…'),
+      {t:'hover', p:[2.5,2.5], h:1.5, dur:3.5, emg:true, z:{f:1,d:1},
+        label:'緊急事態発生の宣言！ → 8の字を中断し、その場でホバリング'},
+      {t:'move', a:[2.5,2.5,1.5], b:[0,0,1.5], dur:4, yaw:'travel', emg:true, z:{f:1},
+        label:'緊急着陸の指示 → 高度維持のまま最短経路で指定着陸地点（H・離着陸地点）へ【緊急着陸時は減点区画無効】'},
+      {t:'land', p:[0,0], h:1.5, dur:3, emg:true, z:{p:[0,0]}, label:'緊急着陸（H地点・定められた区画内に接地）'}
+    ]},
+  { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜① 高度変化を伴うスクエア飛行', gnss:'OFF', limit:'制限6分',
+    course:'square', stand:8.5, cam:26, padR:1, night:true, segs: sqSegments(1.5,3.5,true) },
+  { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜② 緊急着陸を伴う8の字飛行', gnss:'OFF', limit:'制限5分',
+    course:'fig8', stand:6.5, cam:22, padR:1, night:true, emgPad:[0,0],
+    segs:null /* fig8と同一。初期化時に複製 */ },
+  { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外① 高度変化を伴うスクエア飛行', gnss:'ON', limit:'制限9分',
+    course:'square', stand:8.5, cam:26, padR:1, bvlos:true, segs: sqSegments(2.5,3.5,true,{bvlos:true}) },
+  { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外② 異常事態における飛行', gnss:'OFF', limit:'制限5分',
+    course:'bvlos1', stand:6.5, cam:22, padR:1, bvlos:true,
+    segs:[
+      {t:'takeoff', p:[0,0], h:3.5, dur:4, z:{}, label:'目視内で離陸 → 高度3.5mまで上昇'},
+      {t:'hover', p:[0,0], h:3.5, dur:4, z:{}, label:'ホバリングしながら離着陸地点をカメラで確認【このホバリングは減点対象外】'},
+      {t:'hover', p:[0,0], h:3.5, dur:2, z:{}, label:'カメラ操作完了を試験員に伝達 → 指示により機体が見えない状態に'},
+      {t:'hover', p:[0,0], h:3.5, dur:10, z:{hv:[0,0]}, emg:true,
+        label:'目視外で10秒間ホバリング【減点円のみ適用・不合格区画は設定しない】'},
+      {t:'hover', p:[0,0], h:3.5, dur:3, z:{hv:[0,0]}, emg:true,
+        label:'緊急着陸地点をカメラで確認し、経路上に障害物がないことを確認'},
+      {t:'move', a:[0,0,3.5], b:[-6.5,0,3.5], dur:6, yaw:'fixed', emg:true, z:{f:1,d:1},
+        label:'カメラ画像のみで緊急着陸地点へ移動【緊急着陸時：減点・不合格区画とも適用】'},
+      {t:'hover', p:[-6.5,0], h:3.5, dur:2.5, emg:true, z:{p:[-6.5,0]},
+        label:'着陸地点に障害物がないことをカメラで確認'},
+      {t:'land', p:[-6.5,0], h:3.5, dur:3.5, emg:true, z:{p:[-6.5,0]}, label:'機体を見ない状態で緊急着陸'}
+    ]},
+  { cat:'25kg以上（重量限定変更）', name:'重① 高度変化を伴うスクエア飛行（5m⇄10m）', gnss:'OFF', limit:'制限8分',
+    course:'square25', stand:16, cam:40, padR:2.5, segs: sqSegments(5,10,true) },
+  { cat:'25kg以上（重量限定変更）', name:'重② ピルエットホバリング（高度5m）', gnss:'OFF', limit:'制限3分',
+    course:'pirouette', geom:{d:2.5,f:6}, stand:11, cam:26, padR:2.5,
+    segs:[
+      {t:'takeoff', p:[0,0], h:5, dur:5, z:{}, label:'離陸 → 高度5mまで上昇'},
+      {t:'hover', p:[0,0], h:5, dur:5, z:{f:1,d:1}, label:'5秒間ホバリング（半径2.5m／6mの同心円で判定）'},
+      {t:'rotate', p:[0,0], h:5, dur:20, turns:1, z:{f:1,d:1}, label:'約20秒かけて1回転'},
+      {t:'hover', p:[0,0], h:5, dur:2, z:{f:1,d:1}, label:'回転完了'},
+      {t:'land', p:[0,0], h:5, dur:5, z:{p:[0,0]}, label:'着陸（直径5mの区画内に接地）'}
+    ]},
+  { cat:'25kg以上（重量限定変更）', name:'重③ 緊急着陸を伴う円周飛行（直径10m）', gnss:'OFF', limit:'制限8分',
+    course:'circle25', stand:11, cam:36, padR:2.5, segs: circleSegs(1) }
+ ],
+ 2:[
+  { cat:'基本', name:'① スクエア飛行', gnss:'ON', limit:'制限8分',
+    course:'square', stand:8.5, cam:26, padR:1, segs: sqSegments(3.5,3.5,false) },
+  { cat:'基本', name:'② 8の字飛行（連続2周）', gnss:'ON', limit:'制限8分',
+    course:'fig8', stand:6.5, cam:22, padR:1,
+    segs:[
+      {t:'takeoff', p:[0,0], h:1.5, dur:3, z:{}, label:'離陸 → 高度1.5mまで上昇【区画はまだ適用外】'},
+      {t:'hover', p:[0,0], h:1.5, dur:5, z:{p:[0,0]}, label:'5秒間ホバリング【定められた区画のみ適用】'},
+      arc('R', PI, -PI, 10, '8の字飛行 1周目：右円【不合格・減点区画とも適用開始】'),
+      arc('L', 0, 2*PI, 10, '8の字飛行 1周目：左円'),
+      arc('R', PI, -PI, 10, '8の字飛行 2周目：右円'),
+      arc('L', 0, 2*PI, 10, '8の字飛行 2周目：左円'),
+      {t:'hover', p:[0,0], h:1.5, dur:2, z:{p:[0,0]}, label:'2周完了 → 着陸準備'},
+      {t:'land', p:[0,0], h:1.5, dur:3, z:{p:[0,0]}, label:'着陸（定められた区画内に接地）'}
+    ]},
+  { cat:'基本', name:'③ 異常事態における飛行', gnss:'OFF', limit:'制限6分',
+    course:'line', stand:8.5, cam:24, padR:1, segs: lineEmergency(3.5) },
+  { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜① スクエア飛行', gnss:'ON', limit:'制限9分',
+    course:'square', stand:8.5, cam:26, padR:1, night:true, segs: sqSegments(3.5,3.5,false) },
+  { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜② 異常事態における飛行', gnss:'OFF', limit:'制限5分',
+    course:'line', stand:8.5, cam:24, padR:1, night:true, segs: lineEmergency(3.5) },
+  { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外① スクエア飛行', gnss:'ON', limit:'制限9分',
+    course:'square', stand:8.5, cam:26, padR:1, bvlos:true, segs: sqSegments(3.5,3.5,false,{bvlos:true}) },
+  { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外② 異常事態における飛行', gnss:'OFF', limit:'制限5分',
+    course:'bvlos2', stand:6.5, cam:18, padR:1, bvlos:true,
+    segs:[
+      {t:'takeoff', p:[0,0], h:3.5, dur:4, z:{}, label:'目視内で離陸 → 高度3.5mまで上昇'},
+      {t:'hover', p:[0,0], h:3.5, dur:4, z:{}, label:'ホバリングしながら離着陸地点をカメラで確認【このホバリングは減点対象外】'},
+      {t:'hover', p:[0,0], h:3.5, dur:2, z:{}, label:'カメラ操作完了を試験員に伝達 → 指示により機体が見えない状態に'},
+      {t:'hover', p:[0,0], h:3.5, dur:10, z:{hv:[0,0]}, emg:true,
+        label:'目視外で10秒間ホバリング【減点円のみ適用・不合格区画は設定しない】'},
+      {t:'hover', p:[0,0], h:3.5, dur:3, z:{p:[0,0]},
+        label:'試験員の指示でホバリング完了 → 機体を目視できる状態に戻る'},
+      {t:'land', p:[0,0], h:3.5, dur:3.5, z:{p:[0,0]}, label:'目視内で着陸'}
+    ]},
+  { cat:'25kg以上（重量限定変更）', name:'重① スクエア飛行（高度5m）', gnss:'ON', limit:'制限8分',
+    course:'square25', stand:16, cam:40, padR:2.5, segs: sqSegments(5,5,false) },
+  { cat:'25kg以上（重量限定変更）', name:'重② 円周飛行（正逆各2周・直径10m）', gnss:'ON', limit:'制限8分',
+    course:'circle25', stand:11, cam:36, padR:2.5, segs: circleSegs(2) },
+  { cat:'25kg以上（重量限定変更）', name:'重③ 異常事態における飛行（高度5m）', gnss:'OFF', limit:'制限5分',
+    course:'line25', stand:16, cam:38, padR:2.5, segs: lineEmergency(5) }
+ ]
+};
+// 一等・夜②は基本③と同一経路（複製）
+SCENARIOS[1][4].segs = JSON.parse(JSON.stringify(SCENARIOS[1][2].segs));
+</script>
+<script id="engine">
+"use strict";
+// ---------- Three.js セットアップ ----------
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xbfd9ee);
+scene.fog = new THREE.Fog(0xbfd9ee, 60, 170);
+
+const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 400);
+const droneCam = new THREE.PerspectiveCamera(70, 1.6, 0.1, 200);
+const CAM_TARGET = new THREE.Vector3(0,1.2,-1.5);
+let camMode='bird', sph={theta:0.5, phi:1.05, r:26};
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8a9aa8, 0.95); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff4e0, 0.9);
+sun.position.set(20,30,15); scene.add(sun);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(320,320),
+  new THREE.MeshLambertMaterial({color:0x9fbf8a}));
+ground.rotation.x=-Math.PI/2; ground.position.y=-0.02; scene.add(ground);
+const grid = new THREE.GridHelper(90,90,0xffffff,0xcfe0c4);
+grid.material.opacity=0.35; grid.material.transparent=true; scene.add(grid);
+
+// ---------- ヘルパー ----------
+const courseGroup=new THREE.Group(), trailGroup=new THREE.Group();
+const zoneF=new THREE.Group(), zoneD=new THREE.Group(), zonePad=new THREE.Group(), zoneHv=new THREE.Group();
+scene.add(courseGroup, trailGroup, zoneF, zoneD, zonePad, zoneHv);
+
+function makeLabel(text, scale=1, color='#1c2430', bg='rgba(255,255,255,.85)'){
+  const fs=50, pad=44;
+  const c=document.createElement('canvas');
+  let g=c.getContext('2d');
+  g.font='bold '+fs+'px Meiryo,sans-serif';
+  const tw=Math.ceil(g.measureText(text).width);
+  c.width=Math.max(150, tw+pad); c.height=110;
+  g=c.getContext('2d'); // サイズ変更でコンテキスト再取得
+  g.fillStyle=bg; g.fillRect(2,14,c.width-4,82);
+  g.fillStyle=color; g.font='bold '+fs+'px Meiryo,sans-serif';
+  g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,c.width/2,57);
+  const tex=new THREE.CanvasTexture(c);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, transparent:true}));
+  const h=0.85*scale;
+  sp.scale.set(h*c.width/c.height, h, 1); return sp;
+}
+function markZone(obj, base){ // 区画グループ用：基準不透明度を記録
+  obj.traverse?obj.traverse(o=>{
+    if(o.material){o.material.transparent=true;
+      if(o.userData.base===undefined) o.userData.base=(base!==undefined?base:o.material.opacity);}
+  }):null;
+  if(obj.material){obj.material.transparent=true; obj.userData.base=(base!==undefined?base:obj.material.opacity);}
+  return obj;
+}
+function rectOutline(x0,z0,x1,z1,color,dashed=false,y=0.035){
+  const pts=[[x0,z0],[x1,z0],[x1,z1],[x0,z1],[x0,z0]].map(p=>new THREE.Vector3(p[0],y,p[1]));
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=dashed?new THREE.LineDashedMaterial({color,dashSize:.5,gapSize:.32}):new THREE.LineBasicMaterial({color});
+  const l=new THREE.Line(geo,mat); if(dashed)l.computeLineDistances(); return l;
+}
+function circleOutline(cx,cz,r,color,dashed=false,y=0.035,seg=96){
+  const pts=[]; for(let i=0;i<=seg;i++){const a=i/seg*2*Math.PI;
+    pts.push(new THREE.Vector3(cx+r*Math.cos(a),y,cz+r*Math.sin(a)));}
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=dashed?new THREE.LineDashedMaterial({color,dashSize:.45,gapSize:.3}):new THREE.LineBasicMaterial({color});
+  const l=new THREE.Line(geo,mat); if(dashed)l.computeLineDistances(); return l;
+}
+function bandRect(outer, inner, color, opacity, y=0.02, holeCircle){
+  const sh=new THREE.Shape();
+  sh.moveTo(outer[0],outer[1]); sh.lineTo(outer[2],outer[1]);
+  sh.lineTo(outer[2],outer[3]); sh.lineTo(outer[0],outer[3]); sh.closePath();
+  if(inner){
+    const hole=new THREE.Path();
+    hole.moveTo(inner[0],inner[1]); hole.lineTo(inner[2],inner[1]);
+    hole.lineTo(inner[2],inner[3]); hole.lineTo(inner[0],inner[3]); hole.closePath();
+    sh.holes.push(hole);
+  }
+  if(holeCircle){
+    const hc=new THREE.Path();
+    hc.absarc(holeCircle[0],holeCircle[1],holeCircle[2],0,2*Math.PI,true);
+    sh.holes.push(hc);
+  }
+  const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),
+    new THREE.MeshBasicMaterial({color, transparent:true, opacity, side:THREE.DoubleSide, depthWrite:false}));
+  // rotation.x=+90°: shape(x,y) → world(x,0,y)。-90°だとzが鏡像反転し
+  // z非対称なスクエア区画が受験者側にずれて描画される
+  m.rotation.x=Math.PI/2; m.position.y=y; return m;
+}
+function ringMesh(cx,cz,r0,r1,color,opacity,y=0.02){
+  const m=new THREE.Mesh(new THREE.RingGeometry(Math.max(0.001,r0),r1,72),
+    new THREE.MeshBasicMaterial({color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false}));
+  m.rotation.x=-Math.PI/2; m.position.set(cx,y,cz); return m;
+}
+function pylon(x,z,name){
+  const g=new THREE.Group();
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(0.28,0.7,4),
+    new THREE.MeshLambertMaterial({color:0xe8642c}));
+  cone.position.y=0.35; g.add(cone);
+  if(name){const lab=makeLabel(name,0.9); lab.position.y=1.35; g.add(lab);}
+  g.position.set(x,0,z); return g;
+}
+function hPad(x,z,r=1){
+  const g=new THREE.Group();
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(r,48),
+    new THREE.MeshBasicMaterial({color:0xffffff}));
+  disc.rotation.x=-Math.PI/2; disc.position.y=0.018; g.add(disc);
+  g.add(circleOutline(0,0,r,0x2f7bd9,false,0.03));
+  const lab=makeLabel('H',0.75,'#2f7bd9','rgba(255,255,255,0)');
+  lab.position.y=0.35; g.add(lab);
+  g.position.set(x,0,z); return g;
+}
+function person(x,z,text,col,faceAway){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,0.9,10),
+    new THREE.MeshLambertMaterial({color:col}));
+  body.position.y=0.45; g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,10),
+    new THREE.MeshLambertMaterial({color:0xf0c8a0}));
+  head.position.y=1.05; g.add(head);
+  const lab=makeLabel(text,1.1); lab.position.y=1.9; g.add(lab);
+  if(faceAway){
+    const nb=makeLabel('※機体に背を向けカメラ画像のみで操縦',0.95,'#8a3b00','rgba(255,244,224,.92)');
+    nb.position.y=2.75; g.add(nb);
+  }
+  g.position.set(x,0,z); return g;
+}
+
+// ---------- ドローン ----------
+const drone=new THREE.Group();
+const droneAux={};
+(function buildDrone(){
+  const body=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.2,0.55),
+    new THREE.MeshLambertMaterial({color:0x2a3240}));
+  body.position.y=0.1; drone.add(body);
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.13,0.3,4),
+    new THREE.MeshLambertMaterial({color:0xff5a2a}));
+  nose.rotation.x=-Math.PI/2; nose.position.set(0,0.12,-0.42); drone.add(nose);
+  droneAux.rotors=[];
+  [[-0.5,-0.5],[0.5,-0.5],[-0.5,0.5],[0.5,0.5]].forEach(o=>{
+    const arm=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.05,Math.hypot(o[0],o[1])),
+      new THREE.MeshLambertMaterial({color:0x3d4756}));
+    arm.position.set(o[0]/2,0.1,o[1]/2);
+    arm.lookAt(new THREE.Vector3(o[0],0.1,o[1])); drone.add(arm);
+    const motor=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.1,10),
+      new THREE.MeshLambertMaterial({color:0x222222}));
+    motor.position.set(o[0],0.14,o[1]); drone.add(motor);
+    const rotor=new THREE.Mesh(new THREE.CircleGeometry(0.3,20),
+      new THREE.MeshBasicMaterial({color:0x9db4d0,transparent:true,opacity:0.45,side:THREE.DoubleSide}));
+    rotor.rotation.x=-Math.PI/2; rotor.position.set(o[0],0.2,o[1]);
+    drone.add(rotor); droneAux.rotors.push(rotor);
+  });
+  // 夜間用LED＋ライト
+  const ledL=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),new THREE.MeshBasicMaterial({color:0xff2222}));
+  ledL.position.set(-0.5,0.24,0.5);
+  const ledR=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),new THREE.MeshBasicMaterial({color:0x22ff55}));
+  ledR.position.set(0.5,0.24,0.5);
+  const ledF=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),new THREE.MeshBasicMaterial({color:0xffffff}));
+  ledF.position.set(0,0.22,-0.5);
+  const plight=new THREE.PointLight(0xbcd4ff,0.9,14);
+  plight.position.set(0,0.3,0);
+  droneAux.leds=[ledL,ledR,ledF,plight];
+  droneAux.leds.forEach(l=>{l.visible=false; drone.add(l);});
+  // 機体カメラ（前下方45°）
+  droneCam.position.set(0,-0.02,-0.35);
+  droneCam.rotation.x=-0.65;
+  drone.add(droneCam);
+  // 機首矢印（ヨー用ラッパー）
+  const arrGroup=new THREE.Group();
+  const arrShape=new THREE.Shape();
+  arrShape.moveTo(0,0.95); arrShape.lineTo(0.35,0.3); arrShape.lineTo(-0.35,0.3); arrShape.closePath();
+  const arrow=new THREE.Mesh(new THREE.ShapeGeometry(arrShape),
+    new THREE.MeshBasicMaterial({color:0x444444,transparent:true,opacity:0.55,depthWrite:false}));
+  arrow.rotation.x=-Math.PI/2; arrGroup.add(arrow);
+  droneAux.arrowGroup=arrGroup; scene.add(arrGroup);
+  // 影＋高度線
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.45,24),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25,depthWrite:false}));
+  shadow.rotation.x=-Math.PI/2; droneAux.shadow=shadow; scene.add(shadow);
+  const altLine=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),
+    new THREE.LineDashedMaterial({color:0x555555,dashSize:.2,gapSize:.15}));
+  droneAux.altLine=altLine; scene.add(altLine);
+})();
+scene.add(drone);
+
+// ---------- 区画ビルダー ----------
+const YEL=0xf2b705, YELL=0xc79a00, RED=0xd63a2f, PATH=0x2f7bd9, GRN=0x2f9a5c;
+
+function buildSquareZones(dOff,fOff){
+  // 経路矩形 x±6.5, z[-5,0]
+  const px0=-6.5,px1=6.5,pz0=-5,pz1=0;
+  const d=[px0-dOff,pz0-dOff,px1+dOff,pz1+dOff];   // 減点境界
+  const f=[px0-fOff,pz0-fOff,px1+fOff,pz1+fOff];   // 不合格境界
+  const iw=px1-dOff, id=pz0+dOff, iz1=pz1-dOff;    // 内側減点島
+  zoneD.add(markZone(bandRect([f[0],f[1],f[2],f[3]],[d[0],d[1],d[2],d[3]],YEL,0.20)));
+  // 内側減点島：細則図面どおりH地点（直径2m）を除外
+  if(iz1>id) zoneD.add(markZone(bandRect([-iw,id,iw,iz1],null,YEL,0.20,0.02,[SQ.H[0],SQ.H[1],0.98])));
+  zoneD.add(markZone(rectOutline(d[0],d[1],d[2],d[3],YELL,true),1));
+  if(iz1>id) zoneD.add(markZone(rectOutline(-iw,id,iw,iz1,YELL,true),1));
+  zoneF.add(markZone(bandRect([f[0]-2.5,f[1]-2.5,f[2]+2.5,f[3]+2.5],[f[0],f[1],f[2],f[3]],RED,0.15)));
+  zoneF.add(markZone(rectOutline(f[0],f[1],f[2],f[3],RED,true),1));
+}
+function buildLineZones(dOff,fOff){
+  const px=6.5;
+  const d=[-px-dOff,-dOff,px+dOff,dOff], f=[-px-fOff,-fOff,px+fOff,fOff];
+  zoneD.add(markZone(bandRect(f,d,YEL,0.20)));
+  zoneD.add(markZone(rectOutline(d[0],d[1],d[2],d[3],YELL,true),1));
+  zoneF.add(markZone(bandRect([f[0]-2.5,f[1]-2.5,f[2]+2.5,f[3]+2.5],f,RED,0.15)));
+  zoneF.add(markZone(rectOutline(f[0],f[1],f[2],f[3],RED,true),1));
+}
+function buildFig8Zones(){
+  // 経路外形 x±5,z±2.5 → 減点境界13×8, 不合格境界15×10（細則図面準拠）＋円中心の内側減点円r=1
+  zoneD.add(markZone(bandRect([-7.5,-5,7.5,5],[-6.5,-4,6.5,4],YEL,0.20)));
+  zoneD.add(markZone(rectOutline(-6.5,-4,6.5,4,YELL,true),1));
+  [[2.5,0],[-2.5,0]].forEach(c=>{
+    zoneD.add(markZone(ringMesh(c[0],c[1],0,1.0,YEL,0.20)));
+    zoneD.add(markZone(circleOutline(c[0],c[1],1.0,YELL,true),1));
+  });
+  zoneF.add(markZone(bandRect([-10,-7,10,7],[-7.5,-5,7.5,5],RED,0.15)));
+  zoneF.add(markZone(rectOutline(-7.5,-5,7.5,5,RED,true),1));
+}
+function buildRadialZones(d,f){
+  zoneD.add(markZone(ringMesh(0,0,d,f,YEL,0.20)));
+  zoneD.add(markZone(circleOutline(0,0,d,YELL,true),1));
+  zoneF.add(markZone(ringMesh(0,0,f,f*1.35,RED,0.15)));
+  zoneF.add(markZone(circleOutline(0,0,f,RED,true),1));
+}
+function buildCircle25Zones(){
+  // 経路r=5、減点2.5（外側7.5・内側2.5）、不合格6（外側11）
+  zoneD.add(markZone(ringMesh(0,0,7.5,11,YEL,0.20)));
+  zoneD.add(markZone(ringMesh(0,0,0,2.5,YEL,0.20)));
+  zoneD.add(markZone(circleOutline(0,0,7.5,YELL,true),1));
+  zoneD.add(markZone(circleOutline(0,0,2.5,YELL,true),1));
+  zoneF.add(markZone(ringMesh(0,0,11,13.5,RED,0.15)));
+  zoneF.add(markZone(circleOutline(0,0,11,RED,true),1));
+}
+function buildPadZone(r){
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(r,48),
+    new THREE.MeshBasicMaterial({color:GRN,transparent:true,opacity:0.30,depthWrite:false}));
+  disc.rotation.x=-Math.PI/2; disc.position.y=0.025;
+  zonePad.add(markZone(disc));
+  zonePad.add(markZone(circleOutline(0,0,r,GRN,false,0.04),1));
+  const lab=makeLabel('直径'+(r*2)+'m',0.85,'#1f8a4c','rgba(255,255,255,.85)');
+  lab.position.y=0.5; lab.userData.base=1; zonePad.add(lab);
+}
+function buildHvZone(){
+  zoneHv.add(markZone(ringMesh(0,0,0,2.5,YEL,0.18)));
+  zoneHv.add(markZone(circleOutline(0,0,2.5,YELL,true),1));
+  const lab=makeLabel('減点円（半径2.5m）',1.2,'#8a6a00','rgba(255,255,255,.85)');
+  lab.position.y=0.5; lab.userData.base=1; zoneHv.add(lab);
+}
+
+// ---------- コース構築 ----------
+function buildCourse(sc){
+  [courseGroup,trailGroup,zoneF,zoneD,zonePad,zoneHv].forEach(g=>g.clear());
+  buildPadZone(sc.padR);
+  buildHvZone(); zoneHv.visible=false;
+
+  const cs=sc.course;
+  if(cs==='square'||cs==='square25'||cs==='line'||cs==='line25'){
+    const big=(cs==='square25'||cs==='line25');
+    const dOff=big?2.5:1.5, fOff=big?6:2.5;
+    if(cs==='square'||cs==='square25'){
+      const pts=[SQ.A,SQ.B,SQ.C,SQ.D,SQ.E,SQ.A].map(p=>new THREE.Vector3(p[0],0.045,p[1]));
+      courseGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({color:PATH})));
+      buildSquareZones(dOff,fOff);
+      ['A','B','C','D','E'].forEach(k=>courseGroup.add(pylon(SQ[k][0],SQ[k][1],k)));
+    }else{
+      courseGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+        [new THREE.Vector3(-6.5,0.045,0),new THREE.Vector3(6.5,0.045,0)]),
+        new THREE.LineBasicMaterial({color:PATH})));
+      buildLineZones(dOff,fOff);
+      ['A','B','E'].forEach(k=>courseGroup.add(pylon(SQ[k][0],SQ[k][1],k)));
+      const star=makeLabel('指定着陸地点（H・離着陸地点）',1.4,'#fff','rgba(214,58,47,.92)');
+      star.position.set(0,2.7,-2.5); courseGroup.add(star);
+    }
+    courseGroup.add(hPad(SQ.H[0],SQ.H[1],sc.padR));
+  }
+  if(cs==='pirouette'){
+    courseGroup.add(hPad(0,0,sc.padR));
+    buildRadialZones(sc.geom.d, sc.geom.f);
+  }
+  if(cs==='fig8'){
+    courseGroup.add(hPad(0,0,1));
+    [[2.5,0],[-2.5,0]].forEach(c=>{
+      courseGroup.add(circleOutline(c[0],c[1],2.5,PATH,false,0.045));
+      courseGroup.add(pylon(c[0],c[1],''));
+    });
+    buildFig8Zones();
+    if(sc.emgPad){
+      const star=makeLabel('指定着陸地点（H・離着陸地点）',1.35,'#fff','rgba(214,58,47,.92)');
+      star.position.set(sc.emgPad[0],2.5,sc.emgPad[1]); courseGroup.add(star);
+    }
+  }
+  if(cs==='circle25'){
+    courseGroup.add(hPad(0,5,2.5));
+    courseGroup.add(circleOutline(0,0,5,PATH,false,0.045));
+    courseGroup.add(pylon(0,0,''));
+    buildCircle25Zones();
+    if(curClass===1){
+      const star=makeLabel('指定着陸地点（H・離着陸地点）',1.5,'#fff','rgba(214,58,47,.92)');
+      star.position.set(0,3.2,5); courseGroup.add(star);
+    }
+  }
+  if(cs==='bvlos1'){
+    [[-6.5,0],[0,0],[6.5,0]].forEach(p=>courseGroup.add(hPad(p[0],p[1],1)));
+    courseGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+      [new THREE.Vector3(-6.5,0.045,0),new THREE.Vector3(6.5,0.045,0)]),
+      new THREE.LineBasicMaterial({color:PATH})));
+    buildLineZones(1.5,2.5);
+    const star=makeLabel('緊急着陸地点（左右いずれか）',2.0,'#fff','rgba(214,58,47,.92)');
+    star.position.set(-6.5,2.6,0.6); courseGroup.add(star);
+  }
+  if(cs==='bvlos2'){
+    courseGroup.add(hPad(0,0,1));
+  }
+  courseGroup.add(person(0.9,sc.stand,'受験者',0x2f5fa8,sc.bvlos));
+  courseGroup.add(person(-0.9,sc.stand,'試験員',0x666e79,false));
+  const fp=sc.segs && sc.segs.find(s=>s.z&&s.z.p);
+  if(fp) zonePad.position.set(fp.z.p[0],0,fp.z.p[1]);
+  const fh=sc.segs && sc.segs.find(s=>s.z&&s.z.hv);
+  if(fh) zoneHv.position.set(fh.z.hv[0],0,fh.z.hv[1]);
+  setNight(!!sc.night);
+}
+
+// ---------- 夜間環境 ----------
+function setNight(on){
+  scene.background.set(on?0x0c1322:0xbfd9ee);
+  scene.fog.color.set(on?0x0c1322:0xbfd9ee);
+  hemi.intensity=on?0.22:0.95;
+  sun.intensity=on?0.10:0.9;
+  grid.material.opacity=on?0.12:0.35;
+  ground.material.color.set(on?0x2c3a2c:0x9fbf8a);
+  droneAux.leds.forEach(l=>l.visible=on);
+}
+
+// ---------- アニメーションエンジン ----------
+let curClass=1, curScIdx=0, playing=false, t=0, SPEED=1;
+let yawCur=0, trailPts=[], trailLine=null, lastTrailT=0;
+
+function totalDur(sc){ return sc.segs.reduce((a,s)=>a+s.dur,0); }
+const ease=u=>u*u*(3-2*u);
+function shortAngle(a){ while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a; }
+
+function samplePose(sc, time){
+  let acc=0;
+  for(const s of sc.segs){
+    if(time <= acc+s.dur || s===sc.segs[sc.segs.length-1]){
+      const u=Math.min(1,Math.max(0,(time-acc)/s.dur));
+      let x,y,z,yawT=null,rot=0;
+      if(s.t==='takeoff'){ x=s.p[0]; z=s.p[1]; y=ease(u)*s.h; }
+      else if(s.t==='land'){ x=s.p[0]; z=s.p[1]; y=(1-ease(u))*s.h; }
+      else if(s.t==='hover'){ x=s.p[0]; z=s.p[1]; y=s.h;
+        x+=Math.sin(time*3)*0.03; z+=Math.cos(time*2.6)*0.03; }
+      else if(s.t==='rotate'){ x=s.p[0]; z=s.p[1]; y=s.h; rot=u*2*Math.PI*(s.turns||1); yawT='rotate'; }
+      else if(s.t==='move'){
+        const e=ease(u);
+        x=s.a[0]+(s.b[0]-s.a[0])*e; z=s.a[1]+(s.b[1]-s.a[1])*e; y=s.a[2]+(s.b[2]-s.a[2])*e;
+        yawT=(s.yaw==='travel')?Math.atan2(-(s.b[0]-s.a[0]), -(s.b[1]-s.a[1])):0;
+      }
+      else if(s.t==='arc'){
+        const a=s.a0+(s.a1-s.a0)*u;
+        x=s.c[0]+s.r*Math.cos(a); z=s.c[1]+s.r*Math.sin(a); y=s.h;
+        const dir=Math.sign(s.a1-s.a0);
+        const dx=-Math.sin(a)*dir, dz=Math.cos(a)*dir;
+        yawT=Math.atan2(-dx,-dz);
+      }
+      return {x,y,z,yawT,rot,seg:s};
+    }
+    acc+=s.dur;
+  }
+}
+
+// ---------- 区画フェーズ更新 ----------
+const zoneAlpha={f:0.12, d:0.12, p:0.12, hv:0.12};
+function lerpZone(group, key, active, dt){
+  const target=active?1:0.10;
+  zoneAlpha[key]+=(target-zoneAlpha[key])*Math.min(1,dt*5);
+  const a=zoneAlpha[key];
+  group.traverse(o=>{
+    if(o.material && o.userData.base!==undefined) o.material.opacity=o.userData.base*a;
+  });
+}
+function setChip(id, active, txt){
+  const el=document.getElementById(id);
+  el.classList.toggle('act',!!active);
+  document.getElementById(id+'v').textContent=txt;
+}
+function updateZones(seg, dt){
+  const z=seg.z||{};
+  lerpZone(zoneF,'f',!!z.f,dt);
+  lerpZone(zoneD,'d',!!(z.d),dt);
+  lerpZone(zonePad,'p',!!z.p,dt);
+  zoneHv.visible=true;
+  lerpZone(zoneHv,'hv',!!z.hv,dt);
+  if(z.p) zonePad.position.set(z.p[0],0,z.p[1]);
+  if(z.hv) zoneHv.position.set(z.hv[0],0,z.hv[1]);
+  const emgMove=(seg.emg && seg.t==='move' && !z.d && z.f);
+  setChip('chipF', z.f, z.f?'適用':'－');
+  setChip('chipD', z.d||z.hv, z.d?'適用':(z.hv?'適用(ホバ円)':(emgMove?'無効':'－')));
+  setChip('chipP', z.p, z.p?'適用':'－');
+}
+
+function updateHUD(sc, pose, time, dt){
+  document.getElementById('hudPhase').textContent=pose.seg.label;
+  document.getElementById('hudAlt').textContent=pose.y.toFixed(1);
+  const m=Math.floor(time/60), s=Math.floor(time%60);
+  document.getElementById('hudTime').textContent=m+':'+String(s).padStart(2,'0');
+  document.getElementById('emg').style.display=pose.seg.emg?'block':'none';
+  updateZones(pose.seg, dt);
+}
+
+// ---------- UI ----------
+function selectScenario(idx){
+  curScIdx=idx; const sc=SCENARIOS[curClass][idx];
+  buildCourse(sc); resetAnim();
+  sph.r=sc.cam||26;
+  document.getElementById('hudTitle').textContent=sc.name;
+  document.getElementById('hudClass').textContent=
+    (curClass===1?'一等':'二等')+'無人航空機操縦士｜'+sc.cat+'｜'+sc.limit;
+  const gb=document.getElementById('hudGnss');
+  gb.textContent='GNSS等 '+sc.gnss; gb.className='badge '+(sc.gnss==='ON'?'on':'off');
+  document.getElementById('pipLabel').style.display=sc.bvlos?'block':'none';
+  document.querySelectorAll('#scButtons button').forEach(b=>
+    b.classList.toggle('sel', b.dataset.idx==idx));
+}
+function renderScenarioButtons(){
+  const box=document.getElementById('scButtons'); box.innerHTML='';
+  let lastCat=null, row=null;
+  SCENARIOS[curClass].forEach((sc,i)=>{
+    if(sc.cat!==lastCat){
+      lastCat=sc.cat;
+      const h=document.createElement('div'); h.className='scat'; h.textContent='▍'+sc.cat;
+      box.appendChild(h);
+      row=document.createElement('div'); row.className='srow'; box.appendChild(row);
+    }
+    const b=document.createElement('button');
+    b.textContent=sc.name+'（GNSS等'+sc.gnss+'）';
+    b.dataset.idx=i;
+    b.onclick=()=>{selectScenario(i); play();};
+    row.appendChild(b);
+  });
+}
+function setClass(c){
+  curClass=c;
+  document.getElementById('tab1').className=c===1?'on1':'';
+  document.getElementById('tab2').className=c===2?'on2':'';
+  document.getElementById('panel').className='panel cls'+c;
+  renderScenarioButtons(); selectScenario(0);
+}
+function resetAnim(){
+  t=0; playing=false; yawCur=0;
+  document.getElementById('btnPlay').textContent='▶ 再生';
+  trailGroup.clear(); trailPts=[]; trailLine=null; lastTrailT=0;
+  const sc=SCENARIOS[curClass][curScIdx];
+  const p=samplePose(sc,0);
+  drone.position.set(p.x,p.y,p.z);
+  updateHUD(sc,p,0,0.05);
+}
+function play(){ playing=true; document.getElementById('btnPlay').textContent='⏸ 一時停止'; }
+function togglePlay(){
+  const sc=SCENARIOS[curClass][curScIdx];
+  if(t>=totalDur(sc)) resetAnim();
+  playing=!playing;
+  document.getElementById('btnPlay').textContent=playing?'⏸ 一時停止':'▶ 再生';
+}
+function setView(v){ camMode=v;
+  const sc=SCENARIOS[curClass][curScIdx];
+  if(v==='bird'){sph={theta:0.5,phi:1.05,r:sc.cam||26};}
+  if(v==='side'){sph={theta:Math.PI/2,phi:1.35,r:(sc.cam||26)*0.9};}
+}
+
+// ---------- カメラ操作 ----------
+let dragging=false,px=0,py=0;
+canvas.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{
+  if(!dragging||camMode==='follow'||camMode==='candidate')return;
+  sph.theta-=(e.clientX-px)*0.005; sph.phi=Math.min(1.5,Math.max(0.15,sph.phi-(e.clientY-py)*0.004));
+  px=e.clientX; py=e.clientY;
+});
+canvas.addEventListener('pointerup',()=>dragging=false);
+canvas.addEventListener('wheel',e=>{e.preventDefault();
+  sph.r=Math.min(90,Math.max(8,sph.r+e.deltaY*0.02));},{passive:false});
+
+function updateCamera(dt){
+  let target=CAM_TARGET.clone(), pos;
+  if(camMode==='follow'){
+    target=drone.position.clone();
+    pos=drone.position.clone().add(new THREE.Vector3(5,3.5,7));
+  }else if(camMode==='candidate'){
+    const sc=SCENARIOS[curClass][curScIdx];
+    pos=new THREE.Vector3(0,1.6,sc.stand+0.5);
+    target=drone.position.clone();
+  }else{
+    pos=new THREE.Vector3(
+      CAM_TARGET.x+sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
+      CAM_TARGET.y+sph.r*Math.cos(sph.phi),
+      CAM_TARGET.z+sph.r*Math.sin(sph.phi)*Math.cos(sph.theta));
+  }
+  camera.position.lerp(pos,Math.min(1,dt*4));
+  camera.lookAt(target);
+}
+
+// ---------- メインループ ----------
+let prev=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(now-prev)/1000); prev=now;
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(canvas.width!==Math.floor(w*renderer.getPixelRatio())){
+    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+  const sc=SCENARIOS[curClass][curScIdx];
+  const total=totalDur(sc);
+  if(playing){
+    t+=dt*SPEED;
+    if(t>=total){ t=total; playing=false;
+      document.getElementById('btnPlay').textContent='▶ もう一度';
+      document.getElementById('hudPhase').textContent='試験科目終了（'+sc.name+'）';
+    }
+  }
+  const p=samplePose(sc,t);
+  drone.position.set(p.x,p.y,p.z);
+
+  // 機首方向
+  let targetYaw=yawCur;
+  if(p.yawT==='rotate'){ targetYaw=-p.rot; yawCur=targetYaw; }
+  else if(p.yawT!==null && p.yawT!==undefined){ targetYaw=p.yawT;
+    yawCur+=shortAngle(targetYaw-yawCur)*Math.min(1,dt*5); }
+  drone.rotation.y=yawCur;
+
+  droneAux.rotors.forEach((r,i)=>{ if(p.y>0.01||playing) r.rotation.z+=dt*(30+i*3); });
+  droneAux.shadow.position.set(p.x,0.028,p.z);
+  droneAux.shadow.scale.setScalar(Math.max(0.4,1-p.y*0.05));
+  droneAux.altLine.geometry.setFromPoints(
+    [new THREE.Vector3(p.x,0,p.z),new THREE.Vector3(p.x,p.y,p.z)]);
+  droneAux.altLine.computeLineDistances();
+  droneAux.arrowGroup.position.set(p.x,0.05,p.z);
+  droneAux.arrowGroup.rotation.y=yawCur;
+
+  if(playing && t-lastTrailT>0.12 && p.y>0.05){
+    lastTrailT=t; trailPts.push(new THREE.Vector3(p.x,p.y,p.z));
+    if(trailLine) trailGroup.remove(trailLine);
+    trailLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(trailPts),
+      new THREE.LineBasicMaterial({color:0x4fa3ff,transparent:true,opacity:0.85}));
+    trailGroup.add(trailLine);
+  }
+
+  updateHUD(sc,p,t,dt);
+  updateCamera(dt);
+
+  // メイン描画
+  renderer.setScissorTest(false);
+  renderer.setViewport(0,0,w,h);
+  renderer.render(scene,camera);
+
+  // 目視外：機体カメラ映像（右下PiP）
+  if(sc.bvlos){
+    const vw=Math.floor(w*0.30), vh=Math.floor(vw*0.62);
+    const vx=w-vw-12, vy=12;
+    droneCam.aspect=vw/vh; droneCam.updateProjectionMatrix();
+    renderer.setScissorTest(true);
+    renderer.setViewport(vx,vy,vw,vh);
+    renderer.setScissor(vx,vy,vw,vh);
+    renderer.render(scene,droneCam);
+    renderer.setScissorTest(false);
+    // ラベル位置調整
+    const lbl=document.getElementById('pipLabel');
+    lbl.style.bottom=(vh+12)+'px';
+  }
+}
+
+// ---------- 初期化 ----------
+renderScenarioButtons();
+selectScenario(0);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

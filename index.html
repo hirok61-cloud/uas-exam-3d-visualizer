@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>無人航空機操縦士 実地試験 3Dフライトビジュアライザー</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    line-height: 1.7;
+    background: #0b1120;
+    color: #e5e7eb;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  p.lead { color: #9ca3af; margin-bottom: 2rem; }
+  ul { list-style: none; padding: 0; display: grid; gap: 12px; }
+  a.card {
+    display: block;
+    padding: 20px 24px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    color: #e5e7eb;
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  a.card:hover { background: #263449; border-color: #60a5fa; }
+  a.card span.sub { display: block; font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+  footer { margin-top: 40px; font-size: 0.8rem; color: #64748b; }
+</style>
+</head>
+<body>
+  <h1>無人航空機操縦士 実地試験 3Dフライトビジュアライザー</h1>
+  <p class="lead">機種別の実地試験フライトパスを3Dで確認できます。</p>
+  <ul>
+    <li><a class="card" href="multirotor.html">マルチローター<span class="sub">回転翼航空機・マルチローター</span></a></li>
+    <li><a class="card" href="helicopter.html">ヘリコプター<span class="sub">回転翼航空機・ヘリコプター</span></a></li>
+    <li><a class="card" href="airplane.html">飛行機<span class="sub">固定翼航空機</span></a></li>
+  </ul>
+  <footer>Internal reference tool — not an official regulatory document.</footer>
+</body>
+</html>

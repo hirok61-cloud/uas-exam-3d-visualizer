@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>無人航空機操縦士 実地試験 3Dフライトビジュアライザー（飛行機）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --navy:#17335f; --navy-d:#0f2547; --teal:#0e6e63; --teal-d:#0a5049;
+    --ink:#1c2430; --paper:#f2f4f7; --line:#d5dbe4;
+    --warn:#f2b705; --danger:#d63a2f; --ok:#2e8b57; --auto:#2f6fb0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Meiryo","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--paper); color:var(--ink); line-height:1.7;
+  }
+  header.doc{
+    background:linear-gradient(135deg,var(--navy-d),var(--navy));
+    color:#fff; padding:26px 28px 20px;
+  }
+  header.doc .kicker{font-size:11px; letter-spacing:.18em; opacity:.75; margin-bottom:6px;}
+  header.doc h1{font-size:21px; font-weight:700; letter-spacing:.02em;}
+  header.doc .sub{font-size:12.5px; opacity:.85; margin-top:6px;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 16px 60px;}
+
+  /* ------- control bar ------- */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; margin-top:18px; overflow:hidden;}
+  .tabs{display:flex; border-bottom:1px solid var(--line);}
+  .tabs button{
+    flex:1; padding:12px 10px; font-size:15px; font-weight:700; border:none; cursor:pointer;
+    background:#eef1f5; color:#5a6472; font-family:inherit; transition:.15s;
+  }
+  .tabs button.on1{background:var(--navy); color:#fff;}
+  .tabs button.on2{background:var(--teal); color:#fff;}
+  .scenarios{padding:10px 14px 12px;}
+  .scat{font-size:11.5px; font-weight:700; color:#6b7583; margin:8px 0 5px; letter-spacing:.05em;}
+  .scat:first-child{margin-top:0;}
+  .srow{display:flex; flex-wrap:wrap; gap:7px;}
+  .srow button{
+    font-family:inherit; font-size:12.5px; padding:8px 13px; border-radius:18px; cursor:pointer;
+    border:1.5px solid var(--line); background:#fff; color:var(--ink); transition:.15s;
+  }
+  .srow button.sel{color:#fff; border-color:transparent;}
+  .cls1 .srow button.sel{background:var(--navy);}
+  .cls2 .srow button.sel{background:var(--teal);}
+  .playbar{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    padding:10px 14px; border-top:1px dashed var(--line); background:#fafbfc; font-size:12.5px;
+  }
+  .playbar button{
+    font-family:inherit; font-size:13px; padding:7px 16px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:#fff;
+  }
+  .playbar button.primary{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:700;}
+  .playbar select{font-family:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:#fff;}
+  .playbar .spacer{flex:1;}
+  .hint{font-size:11.5px; color:#6b7583;}
+
+  /* ------- 3D stage ------- */
+  #stageBox{position:relative; margin-top:14px; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#0b1626;}
+  #stage{width:100%; height:580px; display:block; touch-action:none; cursor:grab;}
+  #hud{
+    position:absolute; top:12px; left:12px; min-width:270px; max-width:380px;
+    background:rgba(12,22,40,.84); color:#fff; border-radius:8px; padding:12px 14px;
+    font-size:12.5px; backdrop-filter:blur(3px); pointer-events:none;
+  }
+  #hud .sc{font-size:13.5px; font-weight:700; margin-bottom:2px;}
+  #hud .cls{font-size:11px; opacity:.8; margin-bottom:7px;}
+  #hud .phase{font-size:12.5px; font-weight:700; color:#ffd76a; min-height:38px;}
+  #hud .row{display:flex; gap:12px; margin-top:7px; flex-wrap:wrap;}
+  #hud .metric b{font-size:15px;}
+  .badge{display:inline-block; padding:1px 9px; border-radius:10px; font-size:11px; font-weight:700;}
+  .badge.on{background:var(--ok);} .badge.off{background:#e07b00;} .badge.auto{background:var(--auto);}
+  #zoneChips{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
+  .chip{font-size:10.5px; padding:2px 8px; border-radius:4px; border:1px solid rgba(255,255,255,.35); opacity:.45;}
+  .chip b{font-weight:700;}
+  .chip.act{opacity:1; border-color:transparent; font-weight:700;}
+  .chip.f.act{background:var(--danger);}
+  .chip.d.act{background:#c79a00;}
+  .chip.r.act{background:#1f8a4c;}
+  #hud .zfoot{font-size:10px; opacity:.65; margin-top:5px;}
+  #emg{
+    position:absolute; top:12px; right:12px; padding:8px 16px; border-radius:8px;
+    background:var(--danger); color:#fff; font-weight:700; font-size:14px; display:none;
+    animation:blink .6s infinite alternate; pointer-events:none;
+  }
+  @keyframes blink{from{opacity:1}to{opacity:.45}}
+  #legend{
+    position:absolute; bottom:10px; left:12px; background:rgba(255,255,255,.9);
+    border-radius:6px; padding:6px 12px; font-size:11px; color:#333; display:flex; gap:13px; pointer-events:none; flex-wrap:wrap;
+  }
+  #legend i{display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:-1px; margin-right:4px;}
+  #pipLabel{
+    position:absolute; right:12px; font-size:11px; font-weight:700; color:#fff;
+    background:rgba(12,22,40,.85); padding:3px 10px; border-radius:5px 5px 0 0; display:none; pointer-events:none;
+  }
+
+  /* ------- comparison ------- */
+  h2.sec{ margin:42px 0 6px; font-size:18px; padding-left:12px; border-left:6px solid var(--navy);}
+  h2.sec.t2{border-left-color:var(--teal);}
+  h2.sec.tz{border-left-color:var(--warn);}
+  p.lede{font-size:13.5px; color:#414c5b; margin-bottom:12px;}
+  table.cmp{width:100%; border-collapse:collapse; background:#fff; font-size:13px; border:1px solid var(--line);}
+  table.cmp th, table.cmp td{border:1px solid var(--line); padding:9px 12px; vertical-align:top;}
+  table.cmp thead th{color:#fff; font-size:13.5px;}
+  table.cmp thead th:nth-child(1){background:#454f5e; width:17%;}
+  table.cmp thead th.c1{background:var(--navy); width:41.5%;}
+  table.cmp thead th.c2{background:var(--teal); width:41.5%;}
+  table.cmp tbody th{background:#f5f7fa; text-align:left; font-weight:700; font-size:12.5px;}
+  table.zone{width:100%; border-collapse:collapse; background:#fff; font-size:12.5px; border:1px solid var(--line);}
+  table.zone th, table.zone td{border:1px solid var(--line); padding:8px 10px; text-align:center;}
+  table.zone thead th{background:#454f5e; color:#fff; font-size:12px;}
+  table.zone tbody th{background:#f5f7fa; text-align:left; font-weight:700;}
+  table.zone td.on{color:var(--danger); font-weight:700; font-size:14px;}
+  .tag1{color:var(--navy); font-weight:700;} .tag2{color:var(--teal); font-weight:700;}
+  .pt{color:var(--danger); font-weight:700;}
+  .note{font-size:11.5px; color:#6b7583; margin-top:8px;}
+  .keybox{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-top:10px; font-size:13.5px;}
+  .keybox b.big{font-size:15px;}
+  @media (max-width:760px){ #stage{height:430px;} header.doc h1{font-size:17px;} }
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="kicker">無人航空機操縦者技能証明　実地試験実施細則（飛行機）｜令和7年12月5日改正（国空無機第298768号）反映</div>
+  <h1>一等・二等 無人航空機操縦士 実地試験〔飛行機〕　3Dフライトビジュアライザー</h1>
+  <div class="sub">飛行機（固定翼）の実技試験（基本＝手動操縦の周回・８の字／限定変更＝自動操縦の周回）の飛行経路・高度・バンク・緊急着陸を3Dアニメーションで再現。飛行機の区画は受験者位置からの<b>開き角度で定められた区画線</b>（内側減点±40°・外側減点±65°・不合格±70°）で判定され、飛行フェーズに応じて明滅します。ドラッグで視点回転、ホイール／ピンチで拡大縮小。</div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== controls ===== -->
+  <div class="panel cls1" id="panel">
+    <div class="tabs">
+      <button id="tab1" class="on1" onclick="setClass(1)">一等（合格：80点以上）</button>
+      <button id="tab2" onclick="setClass(2)">二等（合格：70点以上）</button>
+    </div>
+    <div class="scenarios" id="scButtons"></div>
+    <div class="playbar">
+      <button class="primary" id="btnPlay" onclick="togglePlay()">▶ 再生</button>
+      <button onclick="resetAnim()">⟲ 最初から</button>
+      <label>速度
+        <select id="speed" onchange="SPEED=parseFloat(this.value)">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <label>視点
+        <select id="viewSel" onchange="setView(this.value)">
+          <option value="bird">俯瞰</option>
+          <option value="candidate">受験者視点</option>
+          <option value="side">側面</option>
+          <option value="follow">機体追従</option>
+        </select>
+      </label>
+      <div class="spacer"></div>
+      <span class="hint">区画線はフェーズにより適用が変化します（適用中＝濃く表示／対象外＝薄く表示）</span>
+    </div>
+  </div>
+
+  <!-- ===== 3D stage ===== -->
+  <div id="stageBox">
+    <canvas id="stage"></canvas>
+    <div id="hud">
+      <div class="sc" id="hudTitle">－</div>
+      <div class="cls" id="hudClass">－</div>
+      <div class="phase" id="hudPhase">「▶ 再生」で開始します</div>
+      <div class="row">
+        <span class="metric">高度 <b id="hudAlt">0</b> m</span>
+        <span class="metric">経過 <b id="hudTime">0:00</b></span>
+        <span>操縦 <span class="badge" id="hudMode">－</span></span>
+      </div>
+      <div id="zoneChips">
+        <span class="chip f" id="chipF">不合格区画線 <b id="chipFv">－</b></span>
+        <span class="chip d" id="chipD">減点区画線 <b id="chipDv">－</b></span>
+        <span class="chip r" id="chipR">滑走路逸脱判定 <b id="chipRv">－</b></span>
+      </div>
+      <div class="zfoot" id="zfoot">濃く点灯している区画線のみが現在のフェーズで適用中</div>
+    </div>
+    <div id="emg">⚠ 緊急着陸の指示</div>
+    <div id="pipLabel">操縦装置の画面（不合格区画・飛行経路・軌跡・機体位置を表示）</div>
+    <div id="legend">
+      <span><i style="background:#f2b705"></i>減点区画線（内側±40°／外側±65°・5点減点）</span>
+      <span><i style="background:#d63a2f"></i>不合格区画線（±70°）・不合格区画</span>
+      <span><i style="background:#2f9a5c"></i>滑走路（降着装置の逸脱＝不合格）</span>
+      <span><i style="background:#2f7bd9"></i>飛行経路／軌跡</span>
+    </div>
+  </div>
+
+  <!-- ===== 区画線の解説 ===== -->
+  <h2 class="sec tz">飛行機の区画線と減点適用（開き角度方式）</h2>
+  <p class="lede">マルチローターのような地面上の区画ではなく、飛行機の基本科目では<b>受験者の位置から飛行経路の長辺方向の中心線に対する「開き角度」で区画線</b>を明示します。試験員補助員は原則として<b>受験者の真後ろ</b>に立ち、各区画線への機体の進入を試験員に通知します（操縦装置に区画を表示でき、試験員が認める場合を除く）。</p>
+  <table class="zone">
+    <thead><tr>
+      <th style="width:24%">区画線</th><th style="width:22%">開き角度</th><th>進入・逸脱した場合</th>
+    </tr></thead>
+    <tbody>
+      <tr><th>内側の減点区画線</th><td>中心線より±40°</td><td>旋回時に<b>内側と外側の減点区画線の間を飛行しなかった</b>（旋回を内側で切り上げた）場合 <span class="pt">5点減点</span></td></tr>
+      <tr><th>外側の減点区画線</th><td>中心線より±65°</td><td>線より外側に機体の全てを進入させた場合 <span class="pt">5点減点</span></td></tr>
+      <tr><th>不合格区画線</th><td>中心線より±70°</td><td>線より外側に機体の全てを進入させた場合 <span class="pt">不合格</span>（飛行後の判明を含む）</td></tr>
+      <tr><th>滑走路</th><td>－</td><td>離着陸時に<b>一部でも降着装置が滑走路を逸脱</b>した場合 <span class="pt">不合格</span></td></tr>
+    </tbody>
+  </table>
+  <p class="note">※ 限定変更（夜間・目視外・25kg以上）の自動操縦科目では区画線に代えて<b>不合格区画</b>を設定し、操縦装置の画面上に不合格区画・施設飛行空域・設定した飛行経路・飛行の軌跡等を表示させておく。</p>
+
+  <table class="zone" style="margin-top:14px">
+    <thead><tr>
+      <th style="width:34%">飛行フェーズ（基本科目）</th>
+      <th>不合格区画線</th><th>減点区画線</th><th>滑走路逸脱判定</th>
+    </tr></thead>
+    <tbody>
+      <tr><th>離陸滑走 〜 A地点到達の通知前</th><td>－</td><td>－</td><td class="on">○（滑走中）</td></tr>
+      <tr><th>1周目（試験員と経路・高度を調整）</th><td colspan="2">減点対象外（調整のための飛行）</td><td>－</td></tr>
+      <tr><th>A地点通知後の周回飛行・8の字飛行</th><td class="on">○</td><td class="on">○</td><td>－</td></tr>
+      <tr><th>B地点到達の通知後／緊急着陸の通知後 〜 着陸</th><td>－</td><td>－</td><td class="on">○（接地〜停止）</td></tr>
+    </tbody>
+  </table>
+  <p class="note">※ 離着陸は原則として概ね<b>向かい風</b>となる方向に行う。周回・8の字の方向と着陸進入方向を変える場合は、通知後の飛行経路を任意（緊急着陸時は可能な限り最短）に設定できる。受験者が安全上必要と判断する場合は制限時間内で<b>複数回の着陸復行</b>を行ってもよい。</p>
+
+  <!-- ===== comparison ===== -->
+  <h2 class="sec">一等と二等の違い（総括）</h2>
+  <p class="lede">最大の違いは<b>想定する飛行の前提</b>です。二等は「立入管理措置を講じた上で」（第三者が立ち入らない環境）、一等は「立入管理措置を講ずることなく」（第三者上空を含む、いわゆるカテゴリーⅢ相当）の飛行を安全に行える能力を確認します。飛行機では、基本科目の<b>姿勢制御機能のON/OFF</b>と<b>緊急着陸の有無</b>、限定変更（自動操縦）での<b>飛行経路の再設定（逆向き・高度変更）の有無</b>に難度差が表れます。</p>
+
+  <div class="keybox">
+    <b class="big">ひとことで言うと：</b>　二等＝<span class="tag2">姿勢制御ONでの確実な場周操縦（周回・8の字）</span>、一等＝<span class="tag1">姿勢制御OFFの手動場周＋8の字中の緊急着陸（最短経路での着陸）</span>。限定変更はいずれも自動操縦ですが、一等は上空待機中に<span class="tag1">逆向き・高度を下げた経路への再設定</span>が加わります。
+  </div>
+
+  <table class="cmp" style="margin-top:14px">
+    <thead><tr><th>項目</th><th class="c1">一等無人航空機操縦士（飛行機）</th><th class="c2">二等無人航空機操縦士（飛行機）</th></tr></thead>
+    <tbody>
+      <tr><th>想定する飛行</th>
+        <td>立入管理措置<b>なし</b>で行う飛行（第三者上空を含む）を安全に実施する能力を確認</td>
+        <td>立入管理措置<b>あり</b>で行う飛行を安全に実施する能力を確認</td></tr>
+      <tr><th>合格基準</th>
+        <td>100点持ち点の減点式で<span class="pt">80点以上</span></td>
+        <td>100点持ち点の減点式で<span class="pt">70点以上</span></td></tr>
+      <tr><th>姿勢制御機能</th>
+        <td>基本科目は<b>OFF</b>（手動安定化が前提）</td>
+        <td>基本科目は<b>ON</b></td></tr>
+      <tr><th>実技科目（基本）<br>※25kg未満・VTOL除く</th>
+        <td>① 周回飛行＜10分＞<br>② <b>緊急着陸を伴う</b>８の字飛行＜10分＞</td>
+        <td>① 周回飛行＜15分＞<br>② ８の字飛行（緊急着陸なし）＜15分＞</td></tr>
+      <tr><th>緊急事態対応</th>
+        <td>８の字飛行中に試験員の口頭指示 → 緊急着陸を通知 → <b>可能な限り最短の飛行経路で着陸</b>（進入方向の変更可）</td>
+        <td>基本科目では課されない（限定変更の自動飛行で上空待機等の経路変更に対応）</td></tr>
+      <tr><th>机上試験</th>
+        <td>5問／10分（誤答・未回答は1問5点減点）</td>
+        <td>4問／5分（同左）</td></tr>
+      <tr><th>限定変更の周回飛行<br>（自動操縦・共通枠組）</th>
+        <td>周回<b>2周</b>（目視外状態）→ 上空待機の指示で円状旋回2周以上 → <b>その間に逆向き・高度を下げた経路を再設定</b> → 逆向き周回2周 → 着陸</td>
+        <td>周回<b>3周</b>（目視外状態）→ 上空待機の指示で円状旋回2周以上 → 着陸（<b>逆向き・低高度の再設定なし</b>）</td></tr>
+      <tr><th>共通事項</th>
+        <td colspan="2">試験構成（机上→口述〔飛行前点検〕→実技→口述〔飛行後点検・記録〕→口述〔事故・重大インシデント〕※基本のみ）／基本の飛行高度は概ね対地70〜100m・長辺方向に概ね15秒の直線飛行（短辺は直線なし、機体特性により5秒まで可）／区画線±40°・±65°・±70°／向かい風での離着陸・着陸復行可／<b>失速・墜落・衝突・制御不能・滑走路逸脱・制限時間超過は不合格</b>／施設飛行空域（不合格区画＋30m）と必要滑走路長は受験者が算出して明示／各科目開始前に風向風速を計測（基準超過・概ね横風30°以上かつ3m/s以上で中止）／受験者補助員（速度・高度等の通知、自動で離着陸できない機体の手動離着陸）を配置可</td></tr>
+    </tbody>
+  </table>
+  <p class="note">※ 本改正（国空無機第298768号）は令和8年6月5日施行。第Ⅷ章（一等）・第Ⅶ章（二等）の準用規定により、登録講習機関の修了審査にも読み替えのうえ適用されます。</p>
+
+  <h2 class="sec t2">限定変更（夜間・目視外・25kg以上）の違い</h2>
+  <p class="lede">飛行機の限定変更に係る実技試験は、いずれも<b>自動操縦による飛行</b>を評価対象とし（VTOL機を含めることができる）、飛行経路の設定（制限20分）→試験員の確認→関係者への説明→周回飛行（制限30分）の流れで行います。手動でしか離着陸できない機体は<b>受験者補助員による手動離着陸</b>が認められます。</p>
+  <table class="cmp">
+    <thead><tr><th>限定変更</th><th class="c1">一等</th><th class="c2">二等</th></tr></thead>
+    <tbody>
+      <tr><th>昼間飛行の限定変更<br>（夜間・150ルクス以下）</th>
+        <td>周回2周→円状旋回（次経路を設定）→<b>逆向き・高度を下げた周回2周</b>→着陸。姿勢把握可能な灯火（滑走時含む）が必要</td>
+        <td>周回3周→円状旋回2周→着陸。灯火要件は同じ</td></tr>
+      <tr><th>目視内飛行の限定変更<br>（目視外・画面監視）</th>
+        <td>A地点到達の通知後、受験者は機体が見えない状態となり、操縦装置の画面（不合格区画・経路・軌跡を表示）のみで監視。飛行パターンは夜間と同一（逆向き周回あり）</td>
+        <td>同左（飛行パターンは二等共通＝逆向き周回なし）</td></tr>
+      <tr><th>最大離陸重量25kg未満の<br>限定変更（25kg以上機体）</th>
+        <td>飛行高度は概ね<b>110m</b>（25kg未満は概ね80m）。飛行パターンは同一（逆向き周回あり）</td>
+        <td>飛行高度は概ね<b>110m</b>。飛行パターンは二等共通</td></tr>
+    </tbody>
+  </table>
+  <p class="note">※ 図・寸法・タイミングは細則の記載をもとにした概念図であり、実際の飛行経路の位置・規模は受験者が想定し試験員と調整するもの、採点は原文（実地試験実施細則）が優先されます。夜間シナリオは150ルクス以下の暗所を、自動操縦シナリオは操縦装置の画面（画面右下）を再現しています。旋回半径・滑走距離等は機体性能により異なります。</p>
+
+<script>
+"use strict";
+/* ============================================================
+   無人航空機操縦士 実地試験（飛行機）3D ビジュアライザー
+   ・基本＝手動操縦（周回／8の字）、開き角度区画線（±40/65/70°）
+   ・限定変更＝自動操縦（夜間・目視外・25kg）、不合格区画＋画面PiP
+   ※ マルチローター版ビジュアライザーの構成を踏襲
+============================================================ */
+
+// 座標系: x=右, z=手前(受験者側)+, y=高さ　／　受験者=原点付近, 滑走路 z=-30
+const PI = Math.PI;
+const RWY = {x0:-45, x1:45, z:-30, w:16};
+
+// ---------- セグメント・ジェネレータ ----------
+// t:'wait'(地上停止) 'roll'(滑走 mode:'acc'|'dec') 'line'(直線飛行) 'arc'(旋回)
+// z:{f:不合格区画線, d:減点区画線, r:滑走路判定}　emg:緊急事態
+
+function takeoffSegs(alt, opts={}){
+  const s=[];
+  if(opts.auto){
+    s.push({t:'wait', p:[-45,-30], dur:4, z:{}, label:'飛行経路の設定（制限20分）→ 試験員が設定を確認 → 関係者へ飛行経路・手順を説明'});
+    s.push({t:'roll', a:[-45,-30], b:[35,-30], dur:3.2, mode:'acc', z:{r:1}, label:'自動操縦（又は受験者補助員の手動）で向かい風方向へ離陸滑走'});
+  }else{
+    s.push({t:'wait', p:[-45,-30], dur:3, z:{}, label:'風向風速を計測 → 機体を滑走路の所要位置へ → 離陸を試験員に通知（姿勢制御'+(opts.on?'ON':'OFF')+'）'});
+    s.push({t:'roll', a:[-45,-30], b:[35,-30], dur:3.2, mode:'acc', z:{r:1}, label:'向かい風方向へ離陸滑走（区画線はまだ無効）'});
+  }
+  s.push({t:'line', a:[35,-30,0], b:[105,-30,alt*0.3], dur:2.6, z:{}, label:'離陸 → 上昇'});
+  s.push({t:'arc', c:[105,-115], r:85, a0:PI/2, a1:-PI/2, h0:alt*0.3, h1:alt, dur:7.5, z:{},
+    label:'上昇旋回で周回飛行開始地点（A地点）へ（区画線無効）'});
+  return s; // 終端 (105,-200) 機首-x方向
+}
+
+// 周回1周（反時計回り・図と同方向）
+function lapSegs(h, z, lbl, startX){
+  const sx = (startX===undefined)?105:startX;
+  return [
+    {t:'line', a:[sx,-200,h], b:[-105,-200,h], dur:5.5*(sx+105)/210, z, label:lbl[0]},
+    {t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:h, h1:h, dur:4.5, z, label:lbl[1]},
+    {t:'line', a:[-105,-80,h], b:[105,-80,h], dur:5.5, z, label:lbl[2]},
+    {t:'arc', c:[105,-140], r:60, a0:PI/2, a1:-PI/2, h0:h, h1:h, dur:4.5, z, label:lbl[3]}
+  ];
+}
+
+// 通常着陸（B地点通知後、向かい風方向＝離陸と同方向へ）
+function landSegs(hIn){
+  return [
+    {t:'arc', c:[-105,-140], r:60, a0:-PI, a1:-3*PI/2, h0:hIn, h1:55, dur:2.4, z:{},
+      label:'通知後は区画線無効 → 向かい風方向へ着陸進入（進入方向を変える場合は経路任意）'},
+    {t:'line', a:[-105,-80,55], b:[-48,-34,10], dur:2.8, z:{r:1}, label:'最終進入（滑走路逸脱判定が有効に）'},
+    {t:'line', a:[-48,-34,10], b:[-15,-30,0], dur:1.6, z:{r:1}, label:'接地（一部でも降着装置が滑走路を逸脱すると不合格）'},
+    {t:'roll', a:[-15,-30], b:[38,-30], dur:2.6, mode:'dec', z:{r:1}, label:'滑走路内で減速・停止'},
+    {t:'wait', p:[38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'}
+  ];
+}
+
+// ---------- 基本①周回飛行 ----------
+function basicCircuit(cls){
+  const alt=80, on=(cls===2);
+  const s=takeoffSegs(alt,{on});
+  // 1周目：調整（減点対象外）
+  s.push(...lapSegs(alt, {}, [
+    'A地点到達を通知 → 1周目：試験員の指示で飛行経路を調整（減点対象外）',
+    '1周目：試験員が求める高度（概ね対地70〜100m）に調整中…',
+    '1周目：長辺方向は概ね15秒の直線飛行（短辺は直線なし）',
+    '試験員の指示で調整終了 → 機体が再びA地点到達 → 通知（ここから採点対象）']));
+  // 採点対象 1周
+  s.push(...lapSegs(alt, {f:1,d:1}, [
+    '調整した経路と概ね同じ経路で周回飛行（区画線適用中）',
+    '旋回は内側（±40°）と外側（±65°）の減点区画線の間で行う',
+    '長辺の直線飛行：ふらつき・急激な高度変化は減点',
+    '旋回（一定バンク）：不合格区画線（±70°）の外に出ると不合格']));
+  // 2周目 B地点で着陸通知
+  s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{f:1,d:1}, label:'2周目：周回飛行を継続…'});
+  s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-PI, h0:alt, h1:alt, dur:2.4, z:{f:1,d:1},
+    label:'2周目にB地点付近へ到達 → 着陸することを試験員に通知'});
+  s.push(...landSegs(alt));
+  return s;
+}
+
+// ---------- 8の字（右円=反時計回り・左円=時計回り、中央で接する） ----------
+function eightLap(h, z, lbl){
+  return [
+    {t:'arc', c:[60,-140], r:60, a0:PI/2, a1:-PI, h0:h, h1:h, dur:6.8, z, label:lbl[0]},
+    {t:'arc', c:[-60,-140], r:60, a0:0, a1:2*PI, h0:h, h1:h, dur:9, z, label:lbl[1]},
+    {t:'arc', c:[60,-140], r:60, a0:-PI, a1:-3*PI/2, h0:h, h1:h, dur:2.2, z, label:lbl[2]}
+  ];
+}
+function basicFig8(cls){
+  const alt=80, on=(cls===2);
+  const s=takeoffSegs(alt,{on});
+  s.push(...lapSegs(alt, {}, [
+    'A地点到達を通知 → 1周目：試験員の指示で周回経路・高度を調整（減点対象外）',
+    '1周目：高度（概ね対地70〜100m）・経路を調整中…',
+    '1周目：調整のための周回飛行',
+    '試験員の指示で周回終了 → A地点到達を通知']));
+  s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{}, label:'8の字飛行の開始位置へ…'});
+  s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:alt, h1:alt, dur:4.5, z:{}, label:'8の字飛行の開始位置へ…'});
+  s.push({t:'line', a:[-105,-80,alt], b:[60,-80,alt], dur:4.3, z:{f:1,d:1},
+    label:'調整した経路と概ね同じ位置・規模で8の字飛行を開始（区画線適用）'});
+  s.push(...eightLap(alt, {f:1,d:1}, [
+    '8の字 1周目：右円（経路が曲線となるように飛行）',
+    '8の字 1周目：左円',
+    '8の字 1周目完了へ…']));
+  s.push(...eightLap(alt, {f:1,d:1}, [
+    '8の字 2周目：右円',
+    '8の字 2周目：左円',
+    '8の字 2周目完了'+(cls===1?' → 指示があるまで8の字を継続':'')]));
+  if(cls===1){
+    // 継続中に緊急着陸指示（E地点付近）
+    s.push({t:'arc', c:[60,-140], r:60, a0:PI/2, a1:-PI, h0:alt, h1:alt, dur:6.8, z:{f:1,d:1}, label:'8の字飛行を継続中…'});
+    s.push({t:'arc', c:[-60,-140], r:60, a0:0, a1:3*PI/2, h0:alt, h1:alt, dur:6.7, z:{f:1,d:1}, label:'8の字飛行を継続中…（E地点へ）'});
+    s.push({t:'line', a:[-60,-200,alt], b:[25,-170,62], dur:2.4, emg:true, z:{},
+      label:'試験員「緊急着陸」の口頭指示！ → 受験者は緊急着陸を通知（以後、区画線無効）'});
+    s.push({t:'arc', c:[25,-100], r:70, a0:-PI/2, a1:PI/2, h0:62, h1:10, dur:5.5, emg:true, z:{},
+      label:'可能な限り最短の飛行経路で降下（進入方向の変更可＝本例は逆方向から進入）'});
+    s.push({t:'line', a:[25,-30,10], b:[-2,-30,0], dur:1.5, emg:true, z:{r:1}, label:'接地（降着装置の滑走路逸脱は不合格）'});
+    s.push({t:'roll', a:[-2,-30], b:[-38,-30], dur:2.4, mode:'dec', emg:true, z:{r:1}, label:'滑走路内で減速・停止'});
+    s.push({t:'wait', p:[-38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'});
+  }else{
+    // 二等：A地点へ戻り周回でBへ→着陸
+    s.push({t:'line', a:[60,-80,alt], b:[105,-80,alt], dur:1.3, z:{f:1,d:1}, label:'8の字2周完了 → A地点へ'});
+    s.push({t:'arc', c:[105,-140], r:60, a0:PI/2, a1:-PI/2, h0:alt, h1:alt, dur:4.5, z:{f:1,d:1},
+      label:'A地点到達 → 周回飛行でB地点へ'});
+    s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{f:1,d:1}, label:'周回飛行でB地点へ…'});
+    s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-PI, h0:alt, h1:alt, dur:2.4, z:{f:1,d:1},
+      label:'B地点付近へ到達 → 着陸することを試験員に通知'});
+    s.push(...landSegs(alt));
+  }
+  return s;
+}
+
+// ---------- 限定変更（自動操縦）周回 ----------
+function autoCircuit(cls, alt){
+  const s=takeoffSegs(alt,{auto:true});
+  s.push({t:'line', a:[105,-200,alt], b:[60,-200,alt], dur:1.4, z:{f:1},
+    label:'A地点到達を通知 → 受験者は機体が見えない状態に（操縦装置の画面で監視）'});
+  const laps=(cls===1)?2:3;
+  s.push(...lapSegs(alt, {f:1}, [
+    '周回飛行 1周目（自動操縦・不合格区画のみ設定）',
+    '周回飛行 1周目：長辺は概ね15秒の直線飛行',
+    '周回飛行 1周目：画面上の経路・軌跡・機体位置を監視',
+    '周回飛行 1周目完了'], 60));
+  for(let i=2;i<=laps;i++){
+    s.push(...lapSegs(alt, {f:1}, [
+      '周回飛行 '+i+'周目（自動操縦）',
+      '周回飛行 '+i+'周目：飛行状況を画面で監視',
+      '周回飛行 '+i+'周目：合理的な理由のない監視不足は減点',
+      '周回飛行 '+i+'周目完了'+(i===laps?' → 次周に入る':'')]));
+  }
+  // 上空待機 → 円状旋回
+  s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{f:1}, label:'試験員の口頭指示：「上空待機」 → 速やかに円状の旋回飛行へ'});
+  s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:alt, h1:alt, dur:4.5, z:{f:1}, label:'円状の旋回飛行へ移行…'});
+  s.push({t:'line', a:[-105,-80,alt], b:[0,-80,alt], dur:2.9, z:{f:1}, label:'円状の旋回飛行へ移行…'});
+  if(cls===1){
+    const h2=alt-30;
+    // 細則の図のとおり：指示後も円状旋回を継続しながら経路を設定し、
+    // 円の接線方向（円の右端・遠側向き）に離脱 → 右旋回1回で逆向き周回の長辺（遠側・東行き）に会合する
+    s.push({t:'arc', c:[0,-140], r:60, a0:PI/2, a1:-4*PI, h0:alt, h1:alt, dur:18, z:{f:1},
+      label:'円状の旋回飛行を2周 → 完了を通知 → 「逆向き・高度を下げた周回」の指示 → 旋回を継続しながら経路を設定'});
+    s.push({t:'line', a:[60,-140,alt], b:[60,-155,alt-3], dur:0.5, z:{f:1},
+      label:'設定完了を通知 → 自動飛行で円状の旋回を離脱'});
+    s.push({t:'arc', c:[105,-155], r:45, a0:PI, a1:3*PI/2, h0:alt-3, h1:alt-10, dur:2.2, z:{f:1},
+      label:'降下しながら右旋回 → 逆向きの周回経路（遠側の長辺）に会合'});
+    for(let i=1;i<=2;i++){
+      const e0=(i===1)?alt-10:h2, e1=(i===1)?alt-20:h2;  // 1周目は降下しながら
+      s.push({t:'arc', c:[105,-140], r:60, a0:-PI/2, a1:PI/2, h0:e0, h1:e1, dur:4.5, z:{f:1},
+        label:'逆向きの周回飛行 '+i+'周目（元の周回と逆回り・高度を下げた経路）'});
+      s.push({t:'line', a:[105,-80,e1], b:[-105,-80,h2], dur:5.5, z:{f:1},
+        label:'逆向きの周回飛行 '+i+'周目：長辺の直線飛行'});
+      s.push({t:'arc', c:[-105,-140], r:60, a0:PI/2, a1:3*PI/2, h0:h2, h1:h2, dur:4.5, z:{f:1},
+        label:'逆向きの周回飛行 '+i+'周目'});
+      s.push({t:'line', a:[-105,-200,h2], b:[105,-200,h2], dur:5.5, z:{f:1},
+        label:'逆向きの周回飛行 '+i+'周目'+(i===2?'完了 → 通知':'')});
+    }
+    s.push({t:'arc', c:[105,-140], r:60, a0:-PI/2, a1:PI/2, h0:h2, h1:h2-8, dur:4.5, z:{f:1},
+      label:'試験員の指示により着陸へ（自動又は受験者補助員の手動）'});
+    s.push({t:'line', a:[105,-80,h2-8], b:[-105,-80,h2-18], dur:5.5, z:{f:1},
+      label:'着陸進入の準備（進入方向を変える場合は任意経路）'});
+    s.push({t:'line', a:[-105,-80,h2-18], b:[-152,-80,h2-25], dur:2, z:{},
+      label:'向かい風方向へ着陸するため旋回（区画線・区画の適用外）'});
+    s.push({t:'arc', c:[-152,-55], r:25, a0:-PI/2, a1:-3*PI/2, h0:h2-25, h1:14, dur:3.2, z:{},
+      label:'向かい風方向の最終進入へ旋回'});
+    s.push({t:'line', a:[-152,-30,14], b:[-30,-30,0], dur:3.4, z:{r:1},
+      label:'向かい風方向へ着陸（降着装置の滑走路逸脱は不合格）'});
+    s.push({t:'roll', a:[-30,-30], b:[38,-30], dur:2.6, mode:'dec', z:{r:1}, label:'滑走路内で減速・停止'});
+    s.push({t:'wait', p:[38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'});
+  }else{
+    s.push({t:'arc', c:[0,-140], r:60, a0:PI/2, a1:PI/2-4*PI, h0:alt, h1:alt, dur:14, z:{f:1},
+      label:'円状の旋回飛行を2周 → 完了を通知'});
+    s.push({t:'line', a:[0,-80,alt], b:[105,-80,alt], dur:2.9, z:{f:1},
+      label:'試験員の指示により着陸へ（自動又は受験者補助員の手動）→ 降下開始'});
+    s.push({t:'arc', c:[105,-140], r:60, a0:PI/2, a1:-PI/2, h0:alt, h1:alt-25, dur:4.5, z:{f:1},
+      label:'降下しながら場周経路を飛行'});
+    s.push({t:'line', a:[105,-200,alt-25], b:[-105,-200,alt-45], dur:5.5, z:{f:1},
+      label:'降下しながら場周経路を飛行'});
+    s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:alt-45, h1:50, dur:4.5, z:{},
+      label:'向かい風方向へ着陸進入（進入方向を変える場合は任意経路）'});
+    s.push({t:'line', a:[-105,-80,50], b:[-48,-34,10], dur:2.8, z:{r:1}, label:'最終進入'});
+    s.push({t:'line', a:[-48,-34,10], b:[-15,-30,0], dur:1.6, z:{r:1}, label:'接地（降着装置の滑走路逸脱は不合格）'});
+    s.push({t:'roll', a:[-15,-30], b:[38,-30], dur:2.6, mode:'dec', z:{r:1}, label:'滑走路内で減速・停止'});
+    s.push({t:'wait', p:[38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'});
+  }
+  return s;
+}
+
+// ---------- シナリオ一覧 ----------
+const SCENARIOS = {
+ 1:[
+  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'① 周回飛行', mode:'OFF', limit:'制限10分',
+    course:'basic', cam:360, segs: basicCircuit(1) },
+  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'② 緊急着陸を伴う８の字飛行', mode:'OFF', limit:'制限10分',
+    course:'basic8', cam:360, segs: basicFig8(1) },
+  { cat:'夜間（昼間限定変更・150ルクス以下・自動操縦）', name:'夜 周回飛行（2周＋円旋回＋逆向き低高度2周）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+    course:'auto', cam:430, night:true, auto:true, segs: autoCircuit(1,80) },
+  { cat:'目視外（目視内限定変更・画面監視・自動操縦）', name:'外 周回飛行（同経路・機体は見えない状態）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+    course:'auto', cam:430, auto:true, segs: autoCircuit(1,80) },
+  { cat:'25kg以上（重量限定変更・自動操縦）', name:'重 周回飛行（飛行高度 概ね110m）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+    course:'auto', cam:480, auto:true, segs: autoCircuit(1,110) }
+ ],
+ 2:[
+  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'① 周回飛行', mode:'ON', limit:'制限15分',
+    course:'basic', cam:360, segs: basicCircuit(2) },
+  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'② ８の字飛行', mode:'ON', limit:'制限15分',
+    course:'basic8', cam:360, segs: basicFig8(2) },
+  { cat:'夜間（昼間限定変更・150ルクス以下・自動操縦）', name:'夜 周回飛行（3周＋円旋回→着陸）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+    course:'auto', cam:430, night:true, auto:true, segs: autoCircuit(2,80) },
+  { cat:'目視外（目視内限定変更・画面監視・自動操縦）', name:'外 周回飛行（同経路・機体は見えない状態）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+    course:'auto', cam:430, auto:true, segs: autoCircuit(2,80) },
+  { cat:'25kg以上（重量限定変更・自動操縦）', name:'重 周回飛行（飛行高度 概ね110m）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+    course:'auto', cam:480, auto:true, segs: autoCircuit(2,110) }
+ ]
+};
+
+// ---------- 姿勢サンプリング（純関数） ----------
+function totalDur(sc){ return sc.segs.reduce((a,s)=>a+s.dur,0); }
+function shortAngle(a){ while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a; }
+
+function samplePose(sc, time){
+  let acc=0;
+  for(const s of sc.segs){
+    if(time <= acc+s.dur || s===sc.segs[sc.segs.length-1]){
+      const u=Math.min(1,Math.max(0,(time-acc)/s.dur));
+      let x,y,z;
+      if(s.t==='wait'){ x=s.p[0]; z=s.p[1]; y=0; }
+      else if(s.t==='roll'){
+        const e=(s.mode==='dec')?(1-Math.pow(1-u,1.7)):Math.pow(u,1.7);
+        x=s.a[0]+(s.b[0]-s.a[0])*e; z=s.a[1]+(s.b[1]-s.a[1])*e; y=0;
+      }
+      else if(s.t==='line'){
+        x=s.a[0]+(s.b[0]-s.a[0])*u; z=s.a[1]+(s.b[1]-s.a[1])*u;
+        y=s.a[2]+(s.b[2]-s.a[2])*u;
+      }
+      else{ // arc
+        const a=s.a0+(s.a1-s.a0)*u;
+        x=s.c[0]+s.r*Math.cos(a); z=s.c[1]+s.r*Math.sin(a);
+        y=s.h0+(s.h1-s.h0)*u;
+      }
+      return {x,y,z,seg:s};
+    }
+    acc+=s.dur;
+  }
+}
+</script>
+<script id="engine">
+"use strict";
+// ---------- Three.js セットアップ ----------
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xbfd9ee);
+scene.fog = new THREE.Fog(0xbfd9ee, 700, 2400);
+
+const camera = new THREE.PerspectiveCamera(50, 2, 0.5, 4000);
+const CAM_TARGET = new THREE.Vector3(0,25,-110);
+let camMode='bird', sph={theta:0.35, phi:0.95, r:360};
+
+// 操縦装置画面（自動操縦時PiP・直上からの平行投影）
+const pipCam = new THREE.OrthographicCamera(-300,300,190,-190,1,900);
+pipCam.position.set(0,450,-120); pipCam.up.set(0,0,-1); pipCam.lookAt(0,0,-120);
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8a9aa8, 0.95); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff4e0, 0.9);
+sun.position.set(260,400,190); scene.add(sun);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),
+  new THREE.MeshLambertMaterial({color:0x9fbf8a}));
+ground.rotation.x=-Math.PI/2; ground.position.y=-0.15; scene.add(ground);
+const grid = new THREE.GridHelper(1200,60,0xffffff,0xcfe0c4);
+grid.material.opacity=0.3; grid.material.transparent=true; scene.add(grid);
+
+// ---------- ヘルパー ----------
+const courseGroup=new THREE.Group(), trailGroup=new THREE.Group();
+const zoneF=new THREE.Group(), zoneD=new THREE.Group(), zoneR=new THREE.Group();
+scene.add(courseGroup, trailGroup, zoneF, zoneD, zoneR);
+
+function makeLabel(text, scale=1, color='#1c2430', bg='rgba(255,255,255,.85)'){
+  const fs=50, pad=44;
+  const c=document.createElement('canvas');
+  let g=c.getContext('2d');
+  g.font='bold '+fs+'px Meiryo,sans-serif';
+  const tw=Math.ceil(g.measureText(text).width);
+  c.width=Math.max(150, tw+pad); c.height=110;
+  g=c.getContext('2d');
+  g.fillStyle=bg; g.fillRect(2,14,c.width-4,82);
+  g.fillStyle=color; g.font='bold '+fs+'px Meiryo,sans-serif';
+  g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,c.width/2,57);
+  const tex=new THREE.CanvasTexture(c);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, transparent:true}));
+  const h=0.85*scale;
+  sp.scale.set(h*c.width/c.height, h, 1); return sp;
+}
+function markZone(obj, base){
+  obj.traverse?obj.traverse(o=>{
+    if(o.material){o.material.transparent=true;
+      if(o.userData.base===undefined) o.userData.base=(base!==undefined?base:o.material.opacity);}
+  }):null;
+  if(obj.material){obj.material.transparent=true; obj.userData.base=(base!==undefined?base:obj.material.opacity);}
+  return obj;
+}
+// 地上ライン（点列は[x,z]）
+function groundLine(pts, color, dashed=false, y=0.4){
+  const v=pts.map(p=>new THREE.Vector3(p[0],y,p[1]));
+  const geo=new THREE.BufferGeometry().setFromPoints(v);
+  const mat=dashed?new THREE.LineDashedMaterial({color,dashSize:7,gapSize:4.5}):new THREE.LineBasicMaterial({color});
+  const l=new THREE.Line(geo,mat); if(dashed)l.computeLineDistances(); return l;
+}
+// 塗り多角形（[x,z]列、穴も[x,z]列） ※shape座標はy=-zで渡す
+function groundFill(outer, holes, color, opacity, y=0.25){
+  const sh=new THREE.Shape();
+  outer.forEach((p,i)=> i?sh.lineTo(p[0],-p[1]):sh.moveTo(p[0],-p[1]));
+  sh.closePath();
+  (holes||[]).forEach(hp=>{
+    const hole=new THREE.Path();
+    hp.forEach((p,i)=> i?hole.lineTo(p[0],-p[1]):hole.moveTo(p[0],-p[1]));
+    hole.closePath(); sh.holes.push(hole);
+  });
+  const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),
+    new THREE.MeshBasicMaterial({color, transparent:true, opacity, side:THREE.DoubleSide, depthWrite:false}));
+  m.rotation.x=-Math.PI/2; m.position.y=y; return m;
+}
+function circlePts(cx,cz,r,seg=96){
+  const pts=[]; for(let i=0;i<=seg;i++){const a=i/seg*2*Math.PI;
+    pts.push([cx+r*Math.cos(a), cz+r*Math.sin(a)]);}
+  return pts;
+}
+function pylon(x,z,name,scale=1){
+  const g=new THREE.Group();
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(2.2*scale,5.5*scale,4),
+    new THREE.MeshLambertMaterial({color:0xe8642c}));
+  cone.position.y=2.75*scale; g.add(cone);
+  if(name){const lab=makeLabel(name,7); lab.position.y=10; g.add(lab);}
+  g.position.set(x,0,z); return g;
+}
+function person(x,z,text,col){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,0.9,10),
+    new THREE.MeshLambertMaterial({color:col}));
+  body.position.y=0.45; g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,10),
+    new THREE.MeshLambertMaterial({color:0xf0c8a0}));
+  head.position.y=1.05; g.add(head);
+  g.scale.setScalar(7);
+  const lab=makeLabel(text,8); lab.position.y=13;
+  const w=new THREE.Group(); w.add(g); w.add(lab);
+  w.position.set(x,0,z); return w;
+}
+
+// ---------- 飛行機モデル ----------
+const plane=new THREE.Group();      // 位置・ヨー
+const attG=new THREE.Group();       // ピッチ・ロール
+plane.add(attG);
+const planeAux={};
+(function buildPlane(){
+  const white=new THREE.MeshLambertMaterial({color:0xe9edf3});
+  const accent=new THREE.MeshLambertMaterial({color:0xd8452e});
+  // 胴体（機首=-z）
+  const fus=new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.7,11,10), white);
+  fus.rotation.x=Math.PI/2; fus.position.y=1.1; attG.add(fus);
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.95,2.2,10), accent);
+  nose.rotation.x=-Math.PI/2; nose.position.set(0,1.1,-6.6); attG.add(nose);
+  // 主翼
+  const wing=new THREE.Mesh(new THREE.BoxGeometry(17,0.4,2.8), white);
+  wing.position.set(0,1.5,-0.8); attG.add(wing);
+  const tipL=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.42,2.8), accent);
+  tipL.position.set(-8,1.5,-0.8); attG.add(tipL);
+  const tipR=tipL.clone(); tipR.position.x=8; attG.add(tipR);
+  // 尾翼
+  const hst=new THREE.Mesh(new THREE.BoxGeometry(6.6,0.3,1.8), white);
+  hst.position.set(0,1.3,5); attG.add(hst);
+  const vst=new THREE.Mesh(new THREE.BoxGeometry(0.3,2.8,2.1), accent);
+  vst.position.set(0,2.4,5); attG.add(vst);
+  // プロペラ
+  const prop=new THREE.Mesh(new THREE.CircleGeometry(2.5,24),
+    new THREE.MeshBasicMaterial({color:0x9db4d0,transparent:true,opacity:0.4,side:THREE.DoubleSide}));
+  prop.position.set(0,1.1,-7.7); attG.add(prop); planeAux.prop=prop;
+  // 降着装置
+  [[0,-4.2],[-2.2,1.3],[2.2,1.3]].forEach(o=>{
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,1.1,6),
+      new THREE.MeshLambertMaterial({color:0x2a3240}));
+    leg.position.set(o[0],0.45,o[1]); attG.add(leg);
+    const wheel=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.25,10),
+      new THREE.MeshLambertMaterial({color:0x222222}));
+    wheel.rotation.z=Math.PI/2; wheel.position.set(o[0],0.35? 0.35:0.35,o[1]); wheel.position.y=0.35; attG.add(wheel);
+  });
+  // 夜間用 灯火（左赤・右緑・尾白）＋周辺光
+  const ledL=new THREE.Mesh(new THREE.SphereGeometry(0.45,8,8),new THREE.MeshBasicMaterial({color:0xff2222}));
+  ledL.position.set(-8.4,1.6,-0.8);
+  const ledR=new THREE.Mesh(new THREE.SphereGeometry(0.45,8,8),new THREE.MeshBasicMaterial({color:0x22ff55}));
+  ledR.position.set(8.4,1.6,-0.8);
+  const ledT=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8),new THREE.MeshBasicMaterial({color:0xffffff}));
+  ledT.position.set(0,3.6,5.4);
+  const plight=new THREE.PointLight(0xbcd4ff,0.9,120);
+  plight.position.set(0,2,0);
+  planeAux.leds=[ledL,ledR,ledT,plight];
+  planeAux.leds.forEach(l=>{l.visible=false; attG.add(l);});
+  // 影＋高度線
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(7,24),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false}));
+  shadow.rotation.x=-Math.PI/2; planeAux.shadow=shadow; scene.add(shadow);
+  const altLine=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),
+    new THREE.LineDashedMaterial({color:0x555555,dashSize:3,gapSize:2.2}));
+  planeAux.altLine=altLine; scene.add(altLine);
+})();
+scene.add(plane);
+
+// ---------- 区画・コース構築 ----------
+const YEL=0xf2b705, YELL=0xc79a00, RED=0xd63a2f, PATH=0x2f7bd9, GRN=0x2f9a5c;
+const ZR=430; // 区画線の描画長さ
+
+function rayPt(deg,r){ const a=deg*Math.PI/180; return [r*Math.sin(a), -r*Math.cos(a)]; }
+function wedgeFill(d1,d2,color,op){ // d1<d2（度）扇形
+  const pts=[[0,0]];
+  for(let d=d1; d<=d2; d+=2) pts.push(rayPt(d,ZR));
+  pts.push(rayPt(d2,ZR));
+  return groundFill(pts,null,color,op,0.22);
+}
+function buildAngleZones(){
+  // 減点帯 65〜70°（左右）
+  [[65,70],[-70,-65]].forEach(w=>zoneD.add(markZone(wedgeFill(w[0],w[1],YEL,0.25))));
+  // 不合格帯 70〜88°（左右）
+  [[70,88],[-88,-70]].forEach(w=>zoneF.add(markZone(wedgeFill(w[0],w[1],RED,0.16))));
+  // 区画線＋コーン
+  [40,-40].forEach(d=>{
+    zoneD.add(markZone(groundLine([[0,0],rayPt(d,ZR)],YELL,true),1));
+    for(let r=110;r<=350;r+=80){const p=rayPt(d,r); zoneD.add(markZone(pylon(p[0],p[1],''),1));}
+  });
+  [65,-65].forEach(d=>{
+    zoneD.add(markZone(groundLine([[0,0],rayPt(d,ZR)],YELL,false),1));
+    for(let r=110;r<=350;r+=80){const p=rayPt(d,r); zoneD.add(markZone(pylon(p[0],p[1],''),1));}
+  });
+  [70,-70].forEach(d=>{
+    zoneF.add(markZone(groundLine([[0,0],rayPt(d,ZR)],RED,false),1));
+    for(let r=110;r<=350;r+=80){const p=rayPt(d,r); zoneF.add(markZone(pylon(p[0],p[1],''),1));}
+  });
+  // ラベル
+  const l1=makeLabel('内側の減点区画線（±40°）',10,'#8a6a00','rgba(255,255,255,.88)');
+  const p1=rayPt(40,300); l1.position.set(p1[0],14,p1[1]); l1.userData.base=1; zoneD.add(l1);
+  const l2=makeLabel('外側の減点区画線（±65°）',10,'#8a6a00','rgba(255,255,255,.88)');
+  const p2=rayPt(-65,285); l2.position.set(p2[0],14,p2[1]); l2.userData.base=1; zoneD.add(l2);
+  const l3=makeLabel('不合格区画線（±70°）',10,'#fff','rgba(214,58,47,.92)');
+  const p3=rayPt(72.5,330); l3.position.set(p3[0],20,p3[1]); l3.userData.base=1; zoneF.add(l3);
+  // 中心線
+  courseGroup.add(groundLine([[0,10],[0,-ZR]],0x8a94a2,true,0.3));
+}
+function buildAutoZones(){
+  // 不合格区画：枠外（枠 x±235, z -265〜15）
+  const o=[[-320,100],[320,100],[320,-350],[-320,-350]];
+  const i=[[-235,15],[235,15],[235,-265],[-235,-265]];
+  zoneF.add(markZone(groundFill(o,[i],RED,0.16)));
+  zoneF.add(markZone(groundLine([...i,i[0]],RED,false),1));
+  const l=makeLabel('不合格区画（枠の外側・進入で不合格）',11,'#fff','rgba(214,58,47,.92)');
+  l.position.set(0,18,-278); l.userData.base=1; zoneF.add(l);
+  // 施設飛行空域（不合格区画＋30m）
+  const a=[[-265,45],[265,45],[265,-295],[-265,-295]];
+  courseGroup.add(groundLine([...a,a[0]],0x2f6fb0,true,0.35));
+  const la=makeLabel('施設飛行空域（不合格区画＋30m・立入管理措置）',9,'#2f6fb0','rgba(255,255,255,.85)');
+  la.position.set(0,10,-302); courseGroup.add(la);
+}
+function buildRunway(){
+  const g=new THREE.Group();
+  const strip=new THREE.Mesh(new THREE.PlaneGeometry(RWY.x1-RWY.x0+10, RWY.w),
+    new THREE.MeshLambertMaterial({color:0x8f959e}));
+  strip.rotation.x=-Math.PI/2; strip.position.set((RWY.x0+RWY.x1)/2, 0.1, RWY.z); g.add(strip);
+  for(let x=RWY.x0+6;x<RWY.x1;x+=12){
+    const d=new THREE.Mesh(new THREE.PlaneGeometry(6,0.9),
+      new THREE.MeshBasicMaterial({color:0xffffff}));
+    d.rotation.x=-Math.PI/2; d.position.set(x,0.18,RWY.z); g.add(d);
+  }
+  [[RWY.x0-5,RWY.z-RWY.w/2],[RWY.x1+5,RWY.z-RWY.w/2],[RWY.x0-5,RWY.z+RWY.w/2],[RWY.x1+5,RWY.z+RWY.w/2]]
+    .forEach(p=>g.add(pylon(p[0],p[1],'',0.7)));
+  const lab=makeLabel('滑走路（必要滑走路長は受験者が算出・明示）',8);
+  lab.position.set(0,9,RWY.z+14); g.add(lab);
+  return g;
+}
+function buildRunwayZone(){
+  const x0=RWY.x0-5,x1=RWY.x1+5,z0=RWY.z-RWY.w/2,z1=RWY.z+RWY.w/2;
+  zoneR.add(markZone(groundFill([[x0,z0],[x1,z0],[x1,z1],[x0,z1]],null,GRN,0.3,0.2)));
+  zoneR.add(markZone(groundLine([[x0,z0],[x1,z0],[x1,z1],[x0,z1],[x0,z0]],GRN,false,0.45),1));
+  const lab=makeLabel('降着装置の逸脱＝不合格',8,'#1f8a4c','rgba(255,255,255,.88)');
+  lab.position.set(0,6,RWY.z-14); lab.userData.base=1; zoneR.add(lab);
+}
+// コース参考線（周回経路のオーバル）
+function buildOvalLine(){
+  const pts=[];
+  for(let x=-105;x<=105;x+=10) pts.push([x,-80]);           // 近側 +x
+  for(let d=90;d>=-90;d-=9){const a=d*Math.PI/180; pts.push([105+60*Math.cos(a), -140+60*Math.sin(a)]);} // 右旋回
+  for(let x=105;x>=-105;x-=10) pts.push([x,-200]);          // 遠側 -x
+  for(let d=-90;d>=-270;d-=9){const a=d*Math.PI/180; pts.push([-105+60*Math.cos(a), -140+60*Math.sin(a)]);} // 左旋回
+  return groundLine(pts,PATH,false,0.5);
+}
+
+function buildCourse(sc){
+  [courseGroup,trailGroup,zoneF,zoneD,zoneR].forEach(g=>g.clear());
+  courseGroup.add(buildRunway());
+  buildRunwayZone();
+  const cs=sc.course;
+
+  if(cs==='basic'||cs==='basic8'){
+    buildAngleZones();
+    courseGroup.add(buildOvalLine());
+    if(cs==='basic8'){
+      courseGroup.add(groundLine(circlePts(60,-140,60),PATH,true,0.5));
+      courseGroup.add(groundLine(circlePts(-60,-140,60),PATH,true,0.5));
+      const e=makeLabel('E',12,'#2f7bd9','rgba(255,255,255,.85)');
+      e.position.set(-60,10,-205); courseGroup.add(e);
+    }
+  }
+  if(cs==='auto'){
+    buildAutoZones();
+    courseGroup.add(buildOvalLine());
+    courseGroup.add(groundLine(circlePts(0,-140,60),PATH,true,0.5)); // 円状旋回
+    const hl=makeLabel('円状の旋回飛行（上空待機）',8,'#2f7bd9','rgba(255,255,255,.85)');
+    hl.position.set(0,8,-140); courseGroup.add(hl);
+  }
+  // A・B地点
+  const A=makeLabel('A',13,'#2f7bd9','rgba(255,255,255,.9)'); A.position.set(172,12,-140); courseGroup.add(A);
+  const B=makeLabel('B',13,'#2f7bd9','rgba(255,255,255,.9)'); B.position.set(-172,12,-140); courseGroup.add(B);
+
+  // 人物（試験員補助員は受験者の真後ろ）
+  courseGroup.add(person(6,8,'受験者',0x2f5fa8));
+  courseGroup.add(person(-8,8,'試験員',0x666e79));
+  courseGroup.add(person(6,20,'試験員補助員（真後ろで区画線進入を通知）',0x8a8f98));
+  courseGroup.add(person(20,8,'受験者補助員',0x4a7a5a));
+
+  setNight(!!sc.night);
+}
+
+// ---------- 夜間環境 ----------
+function setNight(on){
+  scene.background.set(on?0x0c1322:0xbfd9ee);
+  scene.fog.color.set(on?0x0c1322:0xbfd9ee);
+  hemi.intensity=on?0.22:0.95;
+  sun.intensity=on?0.10:0.9;
+  grid.material.opacity=on?0.1:0.3;
+  ground.material.color.set(on?0x2c3a2c:0x9fbf8a);
+  planeAux.leds.forEach(l=>l.visible=on);
+}
+
+// ---------- アニメーション状態 ----------
+let curClass=1, curScIdx=0, playing=false, t=0, SPEED=1;
+let yawCur=-Math.PI/2, yawRateS=0, bankCur=0, pitchCur=0;
+let trailPts=[], trailLine=null, lastTrailT=0;
+
+// ---------- 区画フェーズ更新 ----------
+const zoneAlpha={f:0.12, d:0.12, r:0.12};
+function lerpZone(group, key, active, dt){
+  const target=active?1:0.10;
+  zoneAlpha[key]+=(target-zoneAlpha[key])*Math.min(1,dt*5);
+  const a=zoneAlpha[key];
+  group.traverse(o=>{
+    if(o.material && o.userData.base!==undefined) o.material.opacity=o.userData.base*a;
+  });
+}
+function setChip(id, active, txt){
+  const el=document.getElementById(id);
+  el.classList.toggle('act',!!active);
+  document.getElementById(id+'v').textContent=txt;
+}
+function updateZones(seg, dt, sc){
+  const z=seg.z||{};
+  lerpZone(zoneF,'f',!!z.f,dt);
+  lerpZone(zoneD,'d',!!z.d,dt);
+  lerpZone(zoneR,'r',!!z.r,dt);
+  setChip('chipF', z.f, z.f?'適用':'－');
+  setChip('chipD', z.d, z.d?'適用':(sc.auto?'設定なし':'－'));
+  setChip('chipR', z.r, z.r?'適用':'－');
+}
+function updateHUD(sc, pose, time, dt){
+  document.getElementById('hudPhase').textContent=pose.seg.label||'';
+  document.getElementById('hudAlt').textContent=Math.round(pose.y);
+  const m=Math.floor(time/60), s=Math.floor(time%60);
+  document.getElementById('hudTime').textContent=m+':'+String(s).padStart(2,'0');
+  document.getElementById('emg').style.display=pose.seg.emg?'block':'none';
+  updateZones(pose.seg, dt, sc);
+}
+
+// ---------- UI ----------
+function selectScenario(idx){
+  curScIdx=idx; const sc=SCENARIOS[curClass][idx];
+  buildCourse(sc); resetAnim();
+  sph.r=sc.cam||360;
+  document.getElementById('hudTitle').textContent=sc.name;
+  document.getElementById('hudClass').textContent=
+    (curClass===1?'一等':'二等')+'無人航空機操縦士（飛行機）｜'+sc.cat+'｜'+sc.limit;
+  const gb=document.getElementById('hudMode');
+  gb.textContent=(sc.mode==='AUTO')?'自動操縦':('手動・姿勢制御'+sc.mode);
+  gb.className='badge '+(sc.mode==='AUTO'?'auto':(sc.mode==='ON'?'on':'off'));
+  document.getElementById('pipLabel').style.display=sc.auto?'block':'none';
+  document.querySelectorAll('#scButtons button').forEach(b=>
+    b.classList.toggle('sel', b.dataset.idx==idx));
+}
+function renderScenarioButtons(){
+  const box=document.getElementById('scButtons'); box.innerHTML='';
+  let lastCat=null, row=null;
+  SCENARIOS[curClass].forEach((sc,i)=>{
+    if(sc.cat!==lastCat){
+      lastCat=sc.cat;
+      const h=document.createElement('div'); h.className='scat'; h.textContent='▍'+sc.cat;
+      box.appendChild(h);
+      row=document.createElement('div'); row.className='srow'; box.appendChild(row);
+    }
+    const b=document.createElement('button');
+    b.textContent=sc.name+'（'+(sc.mode==='AUTO'?'自動':'姿勢制御'+sc.mode)+'）';
+    b.dataset.idx=i;
+    b.onclick=()=>{selectScenario(i); play();};
+    row.appendChild(b);
+  });
+}
+function setClass(c){
+  curClass=c;
+  document.getElementById('tab1').className=c===1?'on1':'';
+  document.getElementById('tab2').className=c===2?'on2':'';
+  document.getElementById('panel').className='panel cls'+c;
+  renderScenarioButtons(); selectScenario(0);
+}
+function resetAnim(){
+  t=0; playing=false; yawCur=-Math.PI/2; yawRateS=0; bankCur=0; pitchCur=0;
+  document.getElementById('btnPlay').textContent='▶ 再生';
+  trailGroup.clear(); trailPts=[]; trailLine=null; lastTrailT=0;
+  const sc=SCENARIOS[curClass][curScIdx];
+  const p=samplePose(sc,0);
+  plane.position.set(p.x,p.y,p.z);
+  plane.rotation.y=yawCur;
+  updateHUD(sc,p,0,0.05);
+}
+function play(){ playing=true; document.getElementById('btnPlay').textContent='⏸ 一時停止'; }
+function togglePlay(){
+  const sc=SCENARIOS[curClass][curScIdx];
+  if(t>=totalDur(sc)) resetAnim();
+  playing=!playing;
+  document.getElementById('btnPlay').textContent=playing?'⏸ 一時停止':'▶ 再生';
+}
+function setView(v){ camMode=v;
+  const sc=SCENARIOS[curClass][curScIdx];
+  if(v==='bird'){sph={theta:0.35,phi:0.95,r:sc.cam||360};}
+  if(v==='side'){sph={theta:Math.PI/2,phi:1.3,r:(sc.cam||360)*0.85};}
+}
+
+// ---------- カメラ操作 ----------
+let dragging=false,px=0,py=0;
+canvas.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{
+  if(!dragging||camMode==='follow'||camMode==='candidate')return;
+  sph.theta-=(e.clientX-px)*0.005; sph.phi=Math.min(1.5,Math.max(0.12,sph.phi-(e.clientY-py)*0.004));
+  px=e.clientX; py=e.clientY;
+});
+canvas.addEventListener('pointerup',()=>dragging=false);
+canvas.addEventListener('wheel',e=>{e.preventDefault();
+  sph.r=Math.min(1100,Math.max(60,sph.r+e.deltaY*0.3));},{passive:false});
+
+function updateCamera(dt){
+  let target=CAM_TARGET.clone(), pos;
+  if(camMode==='follow'){
+    target=plane.position.clone();
+    pos=plane.position.clone().add(new THREE.Vector3(45,30,65));
+  }else if(camMode==='candidate'){
+    pos=new THREE.Vector3(6,3,14);
+    target=plane.position.clone();
+  }else{
+    pos=new THREE.Vector3(
+      CAM_TARGET.x+sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
+      CAM_TARGET.y+sph.r*Math.cos(sph.phi),
+      CAM_TARGET.z+sph.r*Math.sin(sph.phi)*Math.cos(sph.theta));
+  }
+  camera.position.lerp(pos,Math.min(1,dt*4));
+  camera.lookAt(target);
+}
+
+// ---------- メインループ ----------
+let prev=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(now-prev)/1000); prev=now;
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(canvas.width!==Math.floor(w*renderer.getPixelRatio())){
+    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+  const sc=SCENARIOS[curClass][curScIdx];
+  const total=totalDur(sc);
+  if(playing){
+    t+=dt*SPEED;
+    if(t>=total){ t=total; playing=false;
+      document.getElementById('btnPlay').textContent='▶ もう一度';
+      document.getElementById('hudPhase').textContent='試験科目終了（'+sc.name+'）';
+    }
+  }
+  const p=samplePose(sc,t);
+  plane.position.set(p.x,p.y,p.z);
+
+  // 速度から機首・ピッチ・バンクを算出
+  const p2=samplePose(sc,Math.min(total,t+0.06));
+  const vx=(p2.x-p.x)/0.06, vy=(p2.y-p.y)/0.06, vz=(p2.z-p.z)/0.06;
+  const hs=Math.hypot(vx,vz);
+  if(hs>0.5){
+    const targetYaw=Math.atan2(-vx,-vz);
+    const dYaw=shortAngle(targetYaw-yawCur);
+    yawCur+=dYaw*Math.min(1,dt*6);
+    yawRateS+=(dYaw*6-yawRateS)*Math.min(1,dt*4);
+  }else{ yawRateS+=(0-yawRateS)*Math.min(1,dt*4); }
+  plane.rotation.y=yawCur;
+  // バンク（左旋回=左バンク）／ピッチ（上昇=機首上げ）
+  const bankT=Math.max(-0.55,Math.min(0.55, yawRateS*0.9));
+  bankCur+=(bankT-bankCur)*Math.min(1,dt*3.5);
+  const pitchT=(p.y>0.3||vy>1)?Math.max(-0.35,Math.min(0.4, Math.atan2(vy,Math.max(hs,4))*1.4)):0;
+  pitchCur+=(pitchT-pitchCur)*Math.min(1,dt*3.5);
+  attG.rotation.z=bankCur;
+  attG.rotation.x=pitchCur;
+
+  if(planeAux.prop && (p.seg.t!=='wait'||playing)) planeAux.prop.rotation.z+=dt*40;
+  planeAux.shadow.position.set(p.x,0.3,p.z);
+  planeAux.shadow.scale.setScalar(Math.max(0.35,1-p.y*0.004));
+  planeAux.altLine.geometry.setFromPoints(
+    [new THREE.Vector3(p.x,0,p.z),new THREE.Vector3(p.x,p.y,p.z)]);
+  planeAux.altLine.computeLineDistances();
+
+  if(playing && t-lastTrailT>0.12 && (p.y>0.4||p.seg.t==='roll')){
+    lastTrailT=t; trailPts.push(new THREE.Vector3(p.x,Math.max(p.y,0.5),p.z));
+    if(trailLine) trailGroup.remove(trailLine);
+    trailLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(trailPts),
+      new THREE.LineBasicMaterial({color:0x4fa3ff,transparent:true,opacity:0.85}));
+    trailGroup.add(trailLine);
+  }
+
+  updateHUD(sc,p,t,dt);
+  updateCamera(dt);
+
+  // メイン描画
+  renderer.setScissorTest(false);
+  renderer.setViewport(0,0,w,h);
+  renderer.render(scene,camera);
+
+  // 自動操縦：操縦装置画面（右下PiP・直上視点）
+  if(sc.auto){
+    const vw=Math.floor(w*0.30), vh=Math.floor(vw*0.62);
+    const vx2=w-vw-12, vy2=12;
+    renderer.setScissorTest(true);
+    renderer.setViewport(vx2,vy2,vw,vh);
+    renderer.setScissor(vx2,vy2,vw,vh);
+    renderer.render(scene,pipCam);
+    renderer.setScissorTest(false);
+    const lbl=document.getElementById('pipLabel');
+    lbl.style.bottom=(vh+12)+'px';
+  }
+}
+
+// ---------- 初期化 ----------
+renderScenarioButtons();
+selectScenario(0);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
