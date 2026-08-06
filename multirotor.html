@@ -168,6 +168,14 @@
           <option value="follow">機体追従</option>
         </select>
       </label>
+      <label>描画品質
+        <select id="quality" onchange="setQuality(this.value)">
+          <option value="auto" selected>自動（推奨）</option>
+          <option value="high">高画質</option>
+          <option value="light">軽量（動作優先）</option>
+        </select>
+      </label>
+      <span class="hint" id="qNote"></span>
       <div class="spacer"></div>
       <span class="hint">区画はフェーズにより適用が変化します（適用中＝濃く表示／対象外＝薄く表示）</span>
     </div>
@@ -192,7 +200,7 @@
         <span class="chip d" id="chipD">減点区画 <b id="chipDv">－</b></span>
         <span class="chip p" id="chipP">着陸・ホバリング区画 <b id="chipPv">－</b></span>
       </div>
-      <div class="zfoot" id="zfoot">濃く点灯している区画のみが現在のフェーズで適用中</div>
+      <div class="zfoot" id="zfoot">濃く点灯している区画のみが現在のフェーズで適用中　<span id="fps" style="opacity:.55"></span></div>
       </div>
     </div>
     <div id="emg">⚠ 緊急事態発生</div>
@@ -203,6 +211,7 @@
       <span><i style="background:#2f9a5c"></i>着陸・ホバリング区画（逸脱で5点減点）</span>
       <span><i style="background:#2f7bd9"></i>飛行経路／軌跡</span>
       <span><i style="background:#555"></i>▲＝機首方向</span>
+      <span><i style="background:#8a8f79"></i>試験員補助員（区画進入を試験員へ通知）</span>
     </div>
   </div>
 
@@ -226,10 +235,16 @@
   </table>
   <p class="note">※ 定められた区画＝離着陸地点中心から<b>直径2m</b>（25kg以上の限定変更のみ<b>直径5m</b>）の円。機体の半分以上の逸脱で5点減点。<br>
   そのほかの主な適用例外：
-  ①スクエア飛行・異常事態における飛行では<b>離着陸地点（H）⇄A地点間の移動時は減点区画無効</b>　
-  ②減点区画への<b>飛行区画ごとの初回進入</b>は、通知後概ね2秒以内に経路復帰すれば減点なし　
+  ①スクエア飛行・異常事態における飛行では<b>離着陸地点（H）⇄A地点間の移動時は減点区画無効</b>
+  ②減点区画への<b>飛行区画ごとの初回進入</b>は、試験員補助員が進入を知らせ、試験員が受験者に通知した後、概ね2秒以内に経路復帰すれば減点なし
   ③<b>目視外飛行のホバリング時は不合格区画を設定しない</b>（一等・二等の目視内限定変更）　
   ④一等ピルエットホバリングは離発着場中心から半径1.5m（減点）・2.5m（不合格）の同心円で判定（25kg以上は2.5m／6m）。</p>
+
+  <div class="keybox" style="margin-top:14px">
+    <b class="big">試験員補助員（実地試験実施細則 第Ⅰ章 第4項〜第6項）</b><br>
+    実技試験の実施にあたっては、飛行経路からの逸脱状況を<b>別の手段で確認できる場合を除き</b>、試験員が認めた<b>試験員補助員を所要の場所に配置</b>することとされています。試験員補助員は試験を行う者に所属し、無人航空機の飛行原理・実技試験の具体的内容及び手順・減点適用基準を理解している者で、<b>減点区画又は不合格区画に機体が進入したことを試験員に知らせる</b>補助業務を行います（<b>採点及び合否判定は行いません</b>）。あわせて各科目開始前の風速計測や、実地試験内容・採点結果の記録も試験員又は試験員補助員が行います。<br>
+    <span class="note" style="display:block">※ 3D画面では、区画の境界線を側方から見通せる位置（受験者・試験員より前方の側方）に配置した例を表示しています。細則上の位置指定は「所要の場所」であり、実際の配置は試験実施者が決定します。なお、<b>受験者補助員</b>（緊急時の安全確保のため受験者が必要に応じて配置）は本ビジュアライザーには表示していません。</span>
+  </div>
 
   <!-- ===== comparison ===== -->
   <h2 class="sec">一等と二等の違い（総括）</h2>
@@ -394,9 +409,9 @@ function circleSegs(cls){ // 中心(0,0) r=5, H=(0,5)
 const SCENARIOS = {
  1:[
   { cat:'基本', name:'① 高度変化を伴うスクエア飛行', gnss:'OFF', limit:'制限6分',
-    course:'square', stand:8.5, cam:26, padR:1, segs: sqSegments(1.5,3.5,true) },
+    course:'square', stand:8.5, cam:26, padR:1, assist:[-12.8,-2.5], segs: sqSegments(1.5,3.5,true) },
   { cat:'基本', name:'② ピルエットホバリング', gnss:'OFF', limit:'制限3分',
-    course:'pirouette', geom:{d:1.5,f:2.5}, stand:6.5, cam:18, padR:1,
+    course:'pirouette', geom:{d:1.5,f:2.5}, stand:6.5, cam:18, padR:1, assist:[-5.5,2.5],
     segs:[
       {t:'takeoff', p:[0,0], h:3.5, dur:4, z:{}, label:'離陸 → 高度3.5mまで上昇'},
       {t:'hover', p:[0,0], h:3.5, dur:5, z:{f:1,d:1}, label:'5秒間ホバリング（半径1.5m／2.5mの同心円で判定）'},
@@ -406,7 +421,7 @@ const SCENARIOS = {
       {t:'land', p:[0,0], h:3.5, dur:4, z:{p:[0,0]}, label:'着陸'}
     ]},
   { cat:'基本', name:'③ 緊急着陸を伴う8の字飛行', gnss:'OFF', limit:'制限5分',
-    course:'fig8', stand:6.5, cam:22, padR:1, emgPad:[0,0],
+    course:'fig8', stand:6.5, cam:22, padR:1, assist:[-11.5,2.5], emgPad:[0,0],
     segs:[
       {t:'takeoff', p:[0,0], h:1.5, dur:3, z:{}, label:'離陸 → 高度1.5mまで上昇【区画はまだ適用外】'},
       {t:'hover', p:[0,0], h:1.5, dur:5, z:{p:[0,0]}, label:'5秒間ホバリング【定められた区画のみ適用】'},
@@ -420,14 +435,14 @@ const SCENARIOS = {
       {t:'land', p:[0,0], h:1.5, dur:3, emg:true, z:{p:[0,0]}, label:'緊急着陸（H地点・定められた区画内に接地）'}
     ]},
   { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜① 高度変化を伴うスクエア飛行', gnss:'OFF', limit:'制限6分',
-    course:'square', stand:8.5, cam:26, padR:1, night:true, segs: sqSegments(1.5,3.5,true) },
+    course:'square', stand:8.5, cam:26, padR:1, assist:[-12.8,-2.5], night:true, segs: sqSegments(1.5,3.5,true) },
   { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜② 緊急着陸を伴う8の字飛行', gnss:'OFF', limit:'制限5分',
-    course:'fig8', stand:6.5, cam:22, padR:1, night:true, emgPad:[0,0],
+    course:'fig8', stand:6.5, cam:22, padR:1, assist:[-11.5,2.5], night:true, emgPad:[0,0],
     segs:null /* fig8と同一。初期化時に複製 */ },
   { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外① 高度変化を伴うスクエア飛行', gnss:'ON', limit:'制限9分',
-    course:'square', stand:8.5, cam:26, padR:1, bvlos:true, segs: sqSegments(2.5,3.5,true,{bvlos:true}) },
+    course:'square', stand:8.5, cam:26, padR:1, assist:[-12.8,-2.5], bvlos:true, segs: sqSegments(2.5,3.5,true,{bvlos:true}) },
   { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外② 異常事態における飛行', gnss:'OFF', limit:'制限5分',
-    course:'bvlos1', stand:6.5, cam:22, padR:1, bvlos:true,
+    course:'bvlos1', stand:6.5, cam:22, padR:1, assist:[12.8,3.5], bvlos:true,
     segs:[
       {t:'takeoff', p:[0,0], h:3.5, dur:4, z:{}, label:'目視内で離陸 → 高度3.5mまで上昇'},
       {t:'hover', p:[0,0], h:3.5, dur:4, z:{}, label:'ホバリングしながら離着陸地点をカメラで確認【このホバリングは減点対象外】'},
@@ -443,9 +458,9 @@ const SCENARIOS = {
       {t:'land', p:[-6.5,0], h:3.5, dur:3.5, emg:true, z:{p:[-6.5,0]}, label:'機体を見ない状態で緊急着陸'}
     ]},
   { cat:'25kg以上（重量限定変更）', name:'重① 高度変化を伴うスクエア飛行（5m⇄10m）', gnss:'OFF', limit:'制限8分',
-    course:'square25', stand:16, cam:40, padR:2.5, segs: sqSegments(5,10,true) },
+    course:'square25', stand:16, cam:40, padR:2.5, assist:[-16,-2.5], segs: sqSegments(5,10,true) },
   { cat:'25kg以上（重量限定変更）', name:'重② ピルエットホバリング（高度5m）', gnss:'OFF', limit:'制限3分',
-    course:'pirouette', geom:{d:2.5,f:6}, stand:11, cam:26, padR:2.5,
+    course:'pirouette', geom:{d:2.5,f:6}, stand:11, cam:26, padR:2.5, assist:[-10,4],
     segs:[
       {t:'takeoff', p:[0,0], h:5, dur:5, z:{}, label:'離陸 → 高度5mまで上昇'},
       {t:'hover', p:[0,0], h:5, dur:5, z:{f:1,d:1}, label:'5秒間ホバリング（半径2.5m／6mの同心円で判定）'},
@@ -454,13 +469,13 @@ const SCENARIOS = {
       {t:'land', p:[0,0], h:5, dur:5, z:{p:[0,0]}, label:'着陸（直径5mの区画内に接地）'}
     ]},
   { cat:'25kg以上（重量限定変更）', name:'重③ 緊急着陸を伴う円周飛行（直径10m）', gnss:'OFF', limit:'制限8分',
-    course:'circle25', stand:11, cam:36, padR:2.5, segs: circleSegs(1) }
+    course:'circle25', stand:11, cam:36, padR:2.5, assist:[-14.5,-1], segs: circleSegs(1) }
  ],
  2:[
   { cat:'基本', name:'① スクエア飛行', gnss:'ON', limit:'制限8分',
-    course:'square', stand:8.5, cam:26, padR:1, segs: sqSegments(3.5,3.5,false) },
+    course:'square', stand:8.5, cam:26, padR:1, assist:[-12.8,-2.5], segs: sqSegments(3.5,3.5,false) },
   { cat:'基本', name:'② 8の字飛行（連続2周）', gnss:'ON', limit:'制限8分',
-    course:'fig8', stand:6.5, cam:22, padR:1,
+    course:'fig8', stand:6.5, cam:22, padR:1, assist:[-11.5,2.5],
     segs:[
       {t:'takeoff', p:[0,0], h:1.5, dur:3, z:{}, label:'離陸 → 高度1.5mまで上昇【区画はまだ適用外】'},
       {t:'hover', p:[0,0], h:1.5, dur:5, z:{p:[0,0]}, label:'5秒間ホバリング【定められた区画のみ適用】'},
@@ -472,15 +487,15 @@ const SCENARIOS = {
       {t:'land', p:[0,0], h:1.5, dur:3, z:{p:[0,0]}, label:'着陸（定められた区画内に接地）'}
     ]},
   { cat:'基本', name:'③ 異常事態における飛行', gnss:'OFF', limit:'制限6分',
-    course:'line', stand:8.5, cam:24, padR:1, segs: lineEmergency(3.5) },
+    course:'line', stand:8.5, cam:24, padR:1, assist:[-12.8,4], segs: lineEmergency(3.5) },
   { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜① スクエア飛行', gnss:'ON', limit:'制限9分',
-    course:'square', stand:8.5, cam:26, padR:1, night:true, segs: sqSegments(3.5,3.5,false) },
+    course:'square', stand:8.5, cam:26, padR:1, assist:[-12.8,-2.5], night:true, segs: sqSegments(3.5,3.5,false) },
   { cat:'夜間（昼間限定変更・150ルクス以下）', name:'夜② 異常事態における飛行', gnss:'OFF', limit:'制限5分',
-    course:'line', stand:8.5, cam:24, padR:1, night:true, segs: lineEmergency(3.5) },
+    course:'line', stand:8.5, cam:24, padR:1, assist:[-12.8,4], night:true, segs: lineEmergency(3.5) },
   { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外① スクエア飛行', gnss:'ON', limit:'制限9分',
-    course:'square', stand:8.5, cam:26, padR:1, bvlos:true, segs: sqSegments(3.5,3.5,false,{bvlos:true}) },
+    course:'square', stand:8.5, cam:26, padR:1, assist:[-12.8,-2.5], bvlos:true, segs: sqSegments(3.5,3.5,false,{bvlos:true}) },
   { cat:'目視外（目視内限定変更・カメラ操縦）', name:'外② 異常事態における飛行', gnss:'OFF', limit:'制限5分',
-    course:'bvlos2', stand:6.5, cam:18, padR:1, bvlos:true,
+    course:'bvlos2', stand:6.5, cam:18, padR:1, assist:[-5,4.5], bvlos:true,
     segs:[
       {t:'takeoff', p:[0,0], h:3.5, dur:4, z:{}, label:'目視内で離陸 → 高度3.5mまで上昇'},
       {t:'hover', p:[0,0], h:3.5, dur:4, z:{}, label:'ホバリングしながら離着陸地点をカメラで確認【このホバリングは減点対象外】'},
@@ -492,11 +507,11 @@ const SCENARIOS = {
       {t:'land', p:[0,0], h:3.5, dur:3.5, z:{p:[0,0]}, label:'目視内で着陸'}
     ]},
   { cat:'25kg以上（重量限定変更）', name:'重① スクエア飛行（高度5m）', gnss:'ON', limit:'制限8分',
-    course:'square25', stand:16, cam:40, padR:2.5, segs: sqSegments(5,5,false) },
+    course:'square25', stand:16, cam:40, padR:2.5, assist:[-16,-2.5], segs: sqSegments(5,5,false) },
   { cat:'25kg以上（重量限定変更）', name:'重② 円周飛行（正逆各2周・直径10m）', gnss:'ON', limit:'制限8分',
-    course:'circle25', stand:11, cam:36, padR:2.5, segs: circleSegs(2) },
+    course:'circle25', stand:11, cam:36, padR:2.5, assist:[-14.5,-1], segs: circleSegs(2) },
   { cat:'25kg以上（重量限定変更）', name:'重③ 異常事態における飛行（高度5m）', gnss:'OFF', limit:'制限5分',
-    course:'line25', stand:16, cam:38, padR:2.5, segs: lineEmergency(5) }
+    course:'line25', stand:16, cam:38, padR:2.5, assist:[-16,5], segs: lineEmergency(5) }
  ]
 };
 // 一等・夜②は基本③と同一経路（複製）
@@ -506,8 +521,46 @@ SCENARIOS[1][4].segs = JSON.parse(JSON.stringify(SCENARIOS[1][2].segs));
 "use strict";
 // ---------- Three.js セットアップ ----------
 const canvas = document.getElementById('stage');
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+/* ---- 描画品質（低スペックPC対策）----
+   この画面の重さはほぼGPUの塗り面積で決まる（区画の半透明塗りが広く重なるため）。
+   pixelRatio を下げると塗る画素数が二乗で減るので、これが最も効く。
+   選択はlocalStorageに保存し、社用PCでは「軽量」を選んだままにできる。
+   軽量ではアンチエイリアス(MSAA)も切る。MSAAはコンテキスト生成時にしか
+   指定できないため、保存値をレンダラー生成前に読む。 */
+let qMode='auto';
+try{ qMode=localStorage.getItem('uas3dQuality')||'auto'; }catch(e){}
+
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias:(qMode!=='light'), powerPreference:'high-performance', stencil:false
+});
+
+const DPR = window.devicePixelRatio || 1;
+const PR_STEPS = [0.6, 0.75, 1.0, Math.min(1.5,DPR), Math.min(2,DPR)]
+  .filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b);
+let prIdx=0;
+let needsResize=true;
+function applyPixelRatio(){
+  const pr=PR_STEPS[prIdx];
+  if(Math.abs(renderer.getPixelRatio()-pr)>0.001){ renderer.setPixelRatio(pr); needsResize=true; }
+}
+function pickIdx(m){
+  if(m==='high') return PR_STEPS.length-1;
+  if(m==='light') return 0;
+  return Math.max(0, PR_STEPS.indexOf(Math.min(1.5,DPR)));   // 自動の初期値
+}
+function setQuality(m){
+  const wasLight=(qMode==='light');
+  qMode=m;
+  try{ localStorage.setItem('uas3dQuality',m); }catch(e){}
+  prIdx=pickIdx(m); applyPixelRatio(); qTimer=0; upBlock=0; forceRender=true;
+  // MSAAの有無はリロードでしか切り替わらないので、その旨だけ知らせる
+  const n=document.getElementById('qNote');
+  if(n) n.textContent = (wasLight!==(m==='light')) ? '（再読み込みでさらに軽くなります）' : '';
+}
+prIdx=pickIdx(qMode);
+applyPixelRatio();
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfd9ee);
 scene.fog = new THREE.Fog(0xbfd9ee, 60, 170);
@@ -532,7 +585,13 @@ const courseGroup=new THREE.Group(), trailGroup=new THREE.Group();
 const zoneF=new THREE.Group(), zoneD=new THREE.Group(), zonePad=new THREE.Group(), zoneHv=new THREE.Group();
 scene.add(courseGroup, trailGroup, zoneF, zoneD, zonePad, zoneHv);
 
-function makeLabel(text, scale=1, color='#1c2430', bg='rgba(255,255,255,.85)'){
+/* ラベルテクスチャはシナリオ切替のたびに作り直すとGPUメモリを食い、
+   切替時のカクつき（ヒッチ）の原因になるためキャッシュして使い回す */
+const labelCache=new Map();
+function labelTexture(text, color, bg){
+  const key=text+'|'+color+'|'+bg;
+  let e=labelCache.get(key);
+  if(e) return e;
   const fs=50, pad=44;
   const c=document.createElement('canvas');
   let g=c.getContext('2d');
@@ -544,9 +603,16 @@ function makeLabel(text, scale=1, color='#1c2430', bg='rgba(255,255,255,.85)'){
   g.fillStyle=color; g.font='bold '+fs+'px Meiryo,sans-serif';
   g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,c.width/2,57);
   const tex=new THREE.CanvasTexture(c);
+  tex.minFilter=THREE.LinearFilter; tex.generateMipmaps=false;
+  e={tex, ar:c.width/c.height};
+  labelCache.set(key,e); return e;
+}
+function makeLabel(text, scale=1, color='#1c2430', bg='rgba(255,255,255,.85)'){
+  const {tex,ar}=labelTexture(text,color,bg);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, transparent:true}));
+  sp.userData.keepTexture=true;              // キャッシュ共有なのでdispose対象外
   const h=0.85*scale;
-  sp.scale.set(h*c.width/c.height, h, 1); return sp;
+  sp.scale.set(h*ar, h, 1); return sp;
 }
 function markZone(obj, base){ // 区画グループ用：基準不透明度を記録
   obj.traverse?obj.traverse(o=>{
@@ -613,20 +679,39 @@ function hPad(x,z,r=1){
   lab.position.y=0.35; g.add(lab);
   g.position.set(x,0,z); return g;
 }
-function person(x,z,text,col,faceAway){
+const PERSON_BODY=new THREE.CylinderGeometry(0.16,0.2,0.9,10);
+const PERSON_HEAD=new THREE.SphereGeometry(0.16,12,10);
+const SKIN=new THREE.MeshLambertMaterial({color:0xf0c8a0});
+function person(x,z,text,col,faceAway,note){
   const g=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,0.9,10),
-    new THREE.MeshLambertMaterial({color:col}));
+  const body=new THREE.Mesh(PERSON_BODY, new THREE.MeshLambertMaterial({color:col}));
   body.position.y=0.45; g.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,10),
-    new THREE.MeshLambertMaterial({color:0xf0c8a0}));
+  const head=new THREE.Mesh(PERSON_HEAD, SKIN);
   head.position.y=1.05; g.add(head);
   const lab=makeLabel(text,1.1); lab.position.y=1.9; g.add(lab);
+  if(note){
+    const nb=makeLabel(note,0.85,'#3c4652','rgba(255,255,255,.86)');
+    nb.position.y=2.62; g.add(nb);
+  }
   if(faceAway){
     const nb=makeLabel('※機体に背を向けカメラ画像のみで操縦',0.95,'#8a3b00','rgba(255,244,224,.92)');
     nb.position.y=2.75; g.add(nb);
   }
   g.position.set(x,0,z); return g;
+}
+// 共有ジオメトリ／キャッシュ済みテクスチャを巻き込まずに破棄する
+const KEEP_GEO=new Set([PERSON_BODY,PERSON_HEAD]);
+function disposeGroup(g){
+  g.traverse(o=>{
+    if(o.geometry && !KEEP_GEO.has(o.geometry)) o.geometry.dispose();
+    const mats=Array.isArray(o.material)?o.material:(o.material?[o.material]:[]);
+    mats.forEach(m=>{
+      if(m===SKIN) return;
+      if(m.map && !o.userData.keepTexture) m.map.dispose();
+      m.dispose();
+    });
+  });
+  g.clear();
 }
 
 // ---------- ドローン ----------
@@ -680,10 +765,15 @@ const droneAux={};
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.45,24),
     new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25,depthWrite:false}));
   shadow.rotation.x=-Math.PI/2; droneAux.shadow=shadow; scene.add(shadow);
-  const altLine=new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),
+  // 高度線：毎フレームsetFromPointsで作り直すとGC負荷になるため属性を直接書き換える
+  const altGeo=new THREE.BufferGeometry();
+  const altPos=new Float32Array(6);
+  altGeo.setAttribute('position', new THREE.BufferAttribute(altPos,3));
+  altGeo.setAttribute('lineDistance', new THREE.BufferAttribute(new Float32Array(2),1));
+  const altLine=new THREE.Line(altGeo,
     new THREE.LineDashedMaterial({color:0x555555,dashSize:.2,gapSize:.15}));
-  droneAux.altLine=altLine; scene.add(altLine);
+  altLine.frustumCulled=false;
+  droneAux.altLine=altLine; droneAux.altPos=altPos; scene.add(altLine);
 })();
 scene.add(drone);
 
@@ -756,7 +846,8 @@ function buildHvZone(){
 
 // ---------- コース構築 ----------
 function buildCourse(sc){
-  [courseGroup,trailGroup,zoneF,zoneD,zonePad,zoneHv].forEach(g=>g.clear());
+  [courseGroup,zoneF,zoneD,zonePad,zoneHv].forEach(disposeGroup);
+  clearTrail();
   buildPadZone(sc.padR);
   buildHvZone(); zoneHv.visible=false;
 
@@ -821,11 +912,31 @@ function buildCourse(sc){
   }
   courseGroup.add(person(0.9,sc.stand,'受験者',0x2f5fa8,sc.bvlos));
   courseGroup.add(person(-0.9,sc.stand,'試験員',0x666e79,false));
+  // 試験員補助員（細則 第Ⅰ章4〜6項：所要の場所に配置し、減点区画・不合格区画への進入を試験員へ通知）
+  if(sc.assist) courseGroup.add(
+    person(sc.assist[0],sc.assist[1],'試験員補助員',0x8a8f79,false,'区画進入を試験員へ通知'));
   const fp=sc.segs && sc.segs.find(s=>s.z&&s.z.p);
   if(fp) zonePad.position.set(fp.z.p[0],0,fp.z.p[1]);
   const fh=sc.segs && sc.segs.find(s=>s.z&&s.z.hv);
   if(fh) zoneHv.position.set(fh.z.hv[0],0,fh.z.hv[1]);
   setNight(!!sc.night);
+  refreshZoneMats();
+}
+
+/* 区画の明滅は毎フレーム traverse すると重いので、構築時に対象マテリアルを配列化しておく */
+const zoneMats={f:[],d:[],p:[],hv:[]};
+function collectMats(group){
+  const out=[];
+  group.traverse(o=>{
+    if(o.material && o.userData.base!==undefined){
+      out.push({m:o.material, base:o.userData.base});
+    }
+  });
+  return out;
+}
+function refreshZoneMats(){
+  zoneMats.f=collectMats(zoneF); zoneMats.d=collectMats(zoneD);
+  zoneMats.p=collectMats(zonePad); zoneMats.hv=collectMats(zoneHv);
 }
 
 // ---------- 夜間環境 ----------
@@ -839,9 +950,31 @@ function setNight(on){
   droneAux.leds.forEach(l=>l.visible=on);
 }
 
+// ---------- 飛行軌跡（固定長バッファ・使い回し） ----------
+const TRAIL_MAX=3000;
+const trailPos=new Float32Array(TRAIL_MAX*3);
+const trailGeo=new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos,3).setUsage(THREE.DynamicDrawUsage));
+trailGeo.setDrawRange(0,0);
+const trailLineObj=new THREE.Line(trailGeo,
+  new THREE.LineBasicMaterial({color:0x4fa3ff,transparent:true,opacity:0.85}));
+trailLineObj.frustumCulled=false;
+trailGroup.add(trailLineObj);
+let trailCount=0;
+function clearTrail(){ trailCount=0; trailGeo.setDrawRange(0,0); }
+function pushTrail(x,y,z){
+  if(trailCount>=TRAIL_MAX) return;
+  const i=trailCount*3;
+  trailPos[i]=x; trailPos[i+1]=y; trailPos[i+2]=z;
+  trailCount++;
+  trailGeo.setDrawRange(0,trailCount);
+  const a=trailGeo.attributes.position;
+  a.updateRange.offset=0; a.updateRange.count=trailCount*3; a.needsUpdate=true;
+}
+
 // ---------- アニメーションエンジン ----------
 let curClass=1, curScIdx=0, playing=false, t=0, SPEED=1;
-let yawCur=0, trailPts=[], trailLine=null, lastTrailT=0;
+let yawCur=0, lastTrailT=0;
 
 function totalDur(sc){ return sc.segs.reduce((a,s)=>a+s.dur,0); }
 const ease=u=>u*u*(3-2*u);
@@ -878,26 +1011,39 @@ function samplePose(sc, time){
 
 // ---------- 区画フェーズ更新 ----------
 const zoneAlpha={f:0.12, d:0.12, p:0.12, hv:0.12};
-function lerpZone(group, key, active, dt){
+let zoneAnimating=true;
+function lerpZone(key, active, dt){
   const target=active?1:0.10;
-  zoneAlpha[key]+=(target-zoneAlpha[key])*Math.min(1,dt*5);
-  const a=zoneAlpha[key];
-  group.traverse(o=>{
-    if(o.material && o.userData.base!==undefined) o.material.opacity=o.userData.base*a;
-  });
+  const prev=zoneAlpha[key];
+  // フレームレートに依存しない指数緩和（低fps時も同じ速さで明滅する）
+  const a=prev+(target-prev)*(1-Math.exp(-5*dt));
+  if(Math.abs(a-prev)<0.0008 && Math.abs(target-a)<0.002){
+    if(zoneAlpha[key]!==target){ zoneAlpha[key]=target; applyZoneAlpha(key,target); }
+    return;
+  }
+  zoneAlpha[key]=a; applyZoneAlpha(key,a); zoneAnimating=true;
 }
+function applyZoneAlpha(key,a){
+  const list=zoneMats[key];
+  for(let i=0;i<list.length;i++) list[i].m.opacity=list[i].base*a;
+}
+const chipCache={};
 function setChip(id, active, txt){
+  const key=id+(active?1:0)+txt;
+  if(chipCache[id]===key) return;      // DOM更新は値が変わったときだけ
+  chipCache[id]=key;
   const el=document.getElementById(id);
   el.classList.toggle('act',!!active);
   document.getElementById(id+'v').textContent=txt;
 }
 function updateZones(seg, dt){
   const z=seg.z||{};
-  lerpZone(zoneF,'f',!!z.f,dt);
-  lerpZone(zoneD,'d',!!(z.d),dt);
-  lerpZone(zonePad,'p',!!z.p,dt);
+  zoneAnimating=false;
+  lerpZone('f',!!z.f,dt);
+  lerpZone('d',!!(z.d),dt);
+  lerpZone('p',!!z.p,dt);
   zoneHv.visible=true;
-  lerpZone(zoneHv,'hv',!!z.hv,dt);
+  lerpZone('hv',!!z.hv,dt);
   if(z.p) zonePad.position.set(z.p[0],0,z.p[1]);
   if(z.hv) zoneHv.position.set(z.hv[0],0,z.hv[1]);
   const emgMove=(seg.emg && seg.t==='move' && !z.d && z.f);
@@ -906,12 +1052,20 @@ function updateZones(seg, dt){
   setChip('chipP', z.p, z.p?'適用':'－');
 }
 
+/* HUDのDOM更新は毎フレームやるとレイアウト再計算でカクつくので差分のみ反映 */
+const hudEl={}, hudLast={};
+function hudSet(id, val){
+  if(hudLast[id]===val) return;
+  hudLast[id]=val;
+  (hudEl[id] || (hudEl[id]=document.getElementById(id))).textContent=val;
+}
 function updateHUD(sc, pose, time, dt){
-  document.getElementById('hudPhase').textContent=pose.seg.label;
-  document.getElementById('hudAlt').textContent=pose.y.toFixed(1);
+  hudSet('hudPhase', pose.seg.label);
+  hudSet('hudAlt', pose.y.toFixed(1));
   const m=Math.floor(time/60), s=Math.floor(time%60);
-  document.getElementById('hudTime').textContent=m+':'+String(s).padStart(2,'0');
-  document.getElementById('emg').style.display=pose.seg.emg?'block':'none';
+  hudSet('hudTime', m+':'+String(s).padStart(2,'0'));
+  const emg=pose.seg.emg?'block':'none';
+  if(hudLast.__emg!==emg){ hudLast.__emg=emg; document.getElementById('emg').style.display=emg; }
   updateZones(pose.seg, dt);
 }
 
@@ -956,11 +1110,12 @@ function setClass(c){
 function resetAnim(){
   t=0; playing=false; yawCur=0;
   document.getElementById('btnPlay').textContent='▶ 再生';
-  trailGroup.clear(); trailPts=[]; trailLine=null; lastTrailT=0;
+  clearTrail(); lastTrailT=0;
   const sc=SCENARIOS[curClass][curScIdx];
   const p=samplePose(sc,0);
   drone.position.set(p.x,p.y,p.z);
   updateHUD(sc,p,0,0.05);
+  forceRender=true;
 }
 function play(){ playing=true; document.getElementById('btnPlay').textContent='⏸ 一時停止'; }
 function togglePlay(){
@@ -968,53 +1123,87 @@ function togglePlay(){
   if(t>=totalDur(sc)) resetAnim();
   playing=!playing;
   document.getElementById('btnPlay').textContent=playing?'⏸ 一時停止':'▶ 再生';
+  forceRender=true;
 }
 function setView(v){ camMode=v;
   const sc=SCENARIOS[curClass][curScIdx];
   if(v==='bird'){sph={theta:0.5,phi:1.05,r:sc.cam||26};}
   if(v==='side'){sph={theta:Math.PI/2,phi:1.35,r:(sc.cam||26)*0.9};}
+  forceRender=true;
 }
 
 // ---------- カメラ操作 ----------
-let dragging=false,px=0,py=0;
+let dragging=false,px=0,py=0,forceRender=true;
 canvas.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener('pointermove',e=>{
   if(!dragging||camMode==='follow'||camMode==='candidate')return;
   sph.theta-=(e.clientX-px)*0.005; sph.phi=Math.min(1.5,Math.max(0.15,sph.phi-(e.clientY-py)*0.004));
-  px=e.clientX; py=e.clientY;
+  px=e.clientX; py=e.clientY; forceRender=true;
 });
 canvas.addEventListener('pointerup',()=>dragging=false);
 canvas.addEventListener('wheel',e=>{e.preventDefault();
-  sph.r=Math.min(90,Math.max(8,sph.r+e.deltaY*0.02));},{passive:false});
+  sph.r=Math.min(90,Math.max(8,sph.r+e.deltaY*0.02)); forceRender=true;},{passive:false});
 
+// 使い回し用ベクトル（毎フレームの new を避ける）
+const _camPos=new THREE.Vector3(), _camTgt=new THREE.Vector3();
+const FOLLOW_OFF=new THREE.Vector3(5,3.5,7);
+let camSettled=false;
 function updateCamera(dt){
-  let target=CAM_TARGET.clone(), pos;
   if(camMode==='follow'){
-    target=drone.position.clone();
-    pos=drone.position.clone().add(new THREE.Vector3(5,3.5,7));
+    _camTgt.copy(drone.position);
+    _camPos.copy(drone.position).add(FOLLOW_OFF);
   }else if(camMode==='candidate'){
     const sc=SCENARIOS[curClass][curScIdx];
-    pos=new THREE.Vector3(0,1.6,sc.stand+0.5);
-    target=drone.position.clone();
+    _camPos.set(0,1.6,sc.stand+0.5);
+    _camTgt.copy(drone.position);
   }else{
-    pos=new THREE.Vector3(
+    _camTgt.copy(CAM_TARGET);
+    _camPos.set(
       CAM_TARGET.x+sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
       CAM_TARGET.y+sph.r*Math.cos(sph.phi),
       CAM_TARGET.z+sph.r*Math.sin(sph.phi)*Math.cos(sph.theta));
   }
-  camera.position.lerp(pos,Math.min(1,dt*4));
-  camera.lookAt(target);
+  // フレームレート非依存の追従（低fpsでも同じ速さで寄る＝動きが均一に見える）
+  const k=1-Math.exp(-4*dt);
+  camSettled = camera.position.distanceToSquared(_camPos) < 0.0004;
+  camera.position.lerp(_camPos,k);
+  camera.lookAt(_camTgt);
 }
 
 // ---------- メインループ ----------
 let prev=performance.now();
+let frameAcc=0, frameN=0, qTimer=0, fpsShown=0, upBlock=0;
+
 function loop(now){
   requestAnimationFrame(loop);
-  const dt=Math.min(0.05,(now-prev)/1000); prev=now;
+  // dtの上限を0.1sまで許容：重い1フレームが挟まっても時間が飛ばず、体感の間延びが減る
+  const raw=(now-prev)/1000; prev=now;
+  const dt=Math.min(0.1, raw>0?raw:0.016);
+
   const w=canvas.clientWidth, h=canvas.clientHeight;
-  if(canvas.width!==Math.floor(w*renderer.getPixelRatio())){
+  if(needsResize || canvas.width!==Math.round(w*renderer.getPixelRatio())){
+    needsResize=false;
     renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+    forceRender=true;
   }
+
+  // ---- 自動画質調整：実測フレーム時間で解像度を上下させ、カクつきを抑える ----
+  // 0.2秒超のフレームはタブ非表示などによる中断とみなし計測から除外する
+  if(raw<0.2){ frameAcc+=raw; frameN++; }
+  qTimer+=Math.min(raw,0.2);
+  if(qTimer>=1.0 && frameN>=5){
+    const avg=frameAcc/Math.max(1,frameN);
+    fpsShown=Math.round(1/Math.max(avg,0.0001));
+    const el=document.getElementById('fps');
+    if(el) el.textContent='描画 '+fpsShown+'fps';
+    if(qMode==='auto' && playing){
+      if(avg>1/45 && prIdx>0){ prIdx--; applyPixelRatio(); upBlock=8; }  // 重い → 解像度を落とす
+      else if(upBlock>0){ upBlock--; }
+      else if(avg<1/58 && prIdx<PR_STEPS.length-1){ prIdx++; applyPixelRatio(); upBlock=4; }
+    }
+    frameAcc=0; frameN=0; qTimer=0;
+  }
+
   const sc=SCENARIOS[curClass][curScIdx];
   const total=totalDur(sc);
   if(playing){
@@ -1027,32 +1216,44 @@ function loop(now){
   const p=samplePose(sc,t);
   drone.position.set(p.x,p.y,p.z);
 
-  // 機首方向
-  let targetYaw=yawCur;
-  if(p.yawT==='rotate'){ targetYaw=-p.rot; yawCur=targetYaw; }
-  else if(p.yawT!==null && p.yawT!==undefined){ targetYaw=p.yawT;
-    yawCur+=shortAngle(targetYaw-yawCur)*Math.min(1,dt*5); }
+  // 機首方向（フレームレート非依存の指数緩和）
+  let yawMoving=false;
+  if(p.yawT==='rotate'){ yawMoving=Math.abs(yawCur-(-p.rot))>1e-6; yawCur=-p.rot; }
+  else if(p.yawT!==null && p.yawT!==undefined){
+    const d=shortAngle(p.yawT-yawCur);
+    if(Math.abs(d)>0.0004){ yawCur+=d*(1-Math.exp(-6*dt)); yawMoving=true; }
+    else yawCur=p.yawT;
+  }
   drone.rotation.y=yawCur;
 
-  droneAux.rotors.forEach((r,i)=>{ if(p.y>0.01||playing) r.rotation.z+=dt*(30+i*3); });
+  if(playing){
+    const rs=droneAux.rotors;
+    for(let i=0;i<rs.length;i++) rs[i].rotation.z+=dt*(30+i*3);
+  }
   droneAux.shadow.position.set(p.x,0.028,p.z);
   droneAux.shadow.scale.setScalar(Math.max(0.4,1-p.y*0.05));
-  droneAux.altLine.geometry.setFromPoints(
-    [new THREE.Vector3(p.x,0,p.z),new THREE.Vector3(p.x,p.y,p.z)]);
-  droneAux.altLine.computeLineDistances();
+  // 高度線は属性を直接書き換え（毎フレームのジオメトリ生成を廃止）
+  const ap=droneAux.altPos;
+  ap[0]=p.x; ap[1]=0;   ap[2]=p.z;
+  ap[3]=p.x; ap[4]=p.y; ap[5]=p.z;
+  const altGeo=droneAux.altLine.geometry;
+  altGeo.attributes.position.needsUpdate=true;
+  const ld=altGeo.attributes.lineDistance;
+  ld.array[0]=0; ld.array[1]=p.y; ld.needsUpdate=true;
   droneAux.arrowGroup.position.set(p.x,0.05,p.z);
   droneAux.arrowGroup.rotation.y=yawCur;
 
-  if(playing && t-lastTrailT>0.12 && p.y>0.05){
-    lastTrailT=t; trailPts.push(new THREE.Vector3(p.x,p.y,p.z));
-    if(trailLine) trailGroup.remove(trailLine);
-    trailLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(trailPts),
-      new THREE.LineBasicMaterial({color:0x4fa3ff,transparent:true,opacity:0.85}));
-    trailGroup.add(trailLine);
+  // 軌跡：間隔を詰めて（0.12s→0.05s）滑らかな線にしつつ、確保済みバッファへ書くだけ
+  if(playing && t-lastTrailT>0.05 && p.y>0.05){
+    lastTrailT=t; pushTrail(p.x,p.y,p.z);
   }
 
   updateHUD(sc,p,t,dt);
   updateCamera(dt);
+
+  // 静止中（一時停止かつカメラ・区画の動きなし）は描画を省いてGPU負荷を下げる
+  if(!(playing || dragging || forceRender || zoneAnimating || yawMoving || !camSettled)) return;
+  forceRender=false;
 
   // メイン描画
   renderer.setScissorTest(false);
@@ -1086,6 +1287,7 @@ function toggleInfo(){
 if(window.matchMedia('(max-width:760px)').matches){ toggleInfo(); }
 
 // ---------- 初期化 ----------
+{ const qs=document.getElementById('quality'); if(qs) qs.value=qMode; }   // 保存された品質設定を反映
 renderScenarioButtons();
 selectScenario(0);
 requestAnimationFrame(loop);
