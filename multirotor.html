@@ -236,15 +236,9 @@
   <p class="note">※ 定められた区画＝離着陸地点中心から<b>直径2m</b>（25kg以上の限定変更のみ<b>直径5m</b>）の円。機体の半分以上の逸脱で5点減点。<br>
   そのほかの主な適用例外：
   ①スクエア飛行・異常事態における飛行では<b>離着陸地点（H）⇄A地点間の移動時は減点区画無効</b>
-  ②減点区画への<b>飛行区画ごとの初回進入</b>は、試験員補助員が進入を知らせ、試験員が受験者に通知した後、概ね2秒以内に経路復帰すれば減点なし
+  ②減点区画への<b>飛行区画ごとの初回進入</b>は、通知後概ね2秒以内に経路復帰すれば減点なし　
   ③<b>目視外飛行のホバリング時は不合格区画を設定しない</b>（一等・二等の目視内限定変更）　
   ④一等ピルエットホバリングは離発着場中心から半径1.5m（減点）・2.5m（不合格）の同心円で判定（25kg以上は2.5m／6m）。</p>
-
-  <div class="keybox" style="margin-top:14px">
-    <b class="big">試験員補助員（実地試験実施細則 第Ⅰ章 第4項〜第6項）</b><br>
-    実技試験の実施にあたっては、飛行経路からの逸脱状況を<b>別の手段で確認できる場合を除き</b>、試験員が認めた<b>試験員補助員を所要の場所に配置</b>することとされています。試験員補助員は試験を行う者に所属し、無人航空機の飛行原理・実技試験の具体的内容及び手順・減点適用基準を理解している者で、<b>減点区画又は不合格区画に機体が進入したことを試験員に知らせる</b>補助業務を行います（<b>採点及び合否判定は行いません</b>）。あわせて各科目開始前の風速計測や、実地試験内容・採点結果の記録も試験員又は試験員補助員が行います。<br>
-    <span class="note" style="display:block">※ 3D画面では、区画の境界線を側方から見通せる位置（受験者・試験員より前方の側方）に配置した例を表示しています。細則上の位置指定は「所要の場所」であり、実際の配置は試験実施者が決定します。なお、<b>受験者補助員</b>（緊急時の安全確保のため受験者が必要に応じて配置）は本ビジュアライザーには表示していません。</span>
-  </div>
 
   <!-- ===== comparison ===== -->
   <h2 class="sec">一等と二等の違い（総括）</h2>
@@ -820,13 +814,20 @@ function buildRadialZones(d,f){
   zoneF.add(markZone(circleOutline(0,0,f,RED,true),1));
 }
 function buildCircle25Zones(){
-  // 経路r=5、減点2.5（外側7.5・内側2.5）、不合格6（外側11）
-  zoneD.add(markZone(ringMesh(0,0,7.5,11,YEL,0.20)));
+  /* 細則図（一等4-3／二等4-2）準拠。
+     区画は「飛行経路より縦横に○m逸脱した位置」＝同心円ではなく正方形。
+       飛行経路：半径5m（直径10m）の円
+       減点区画境界   ：経路より縦横2.5m → 15m角（±7.5m）
+       不合格区画境界 ：経路より縦横6m   → 22m角（±11m）※図の「22m」と一致
+     加えて円の内側にも減点区画があり、こちらは中心から半径2.5m
+     （＝経路半径5m − 2.5m）の円（図の中央の網掛け円・直径5m）。 */
+  const d=7.5, f=11;
+  zoneD.add(markZone(bandRect([-f,-f,f,f],[-d,-d,d,d],YEL,0.20)));
+  zoneD.add(markZone(rectOutline(-d,-d,d,d,YELL,true),1));
   zoneD.add(markZone(ringMesh(0,0,0,2.5,YEL,0.20)));
-  zoneD.add(markZone(circleOutline(0,0,7.5,YELL,true),1));
   zoneD.add(markZone(circleOutline(0,0,2.5,YELL,true),1));
-  zoneF.add(markZone(ringMesh(0,0,11,13.5,RED,0.15)));
-  zoneF.add(markZone(circleOutline(0,0,11,RED,true),1));
+  zoneF.add(markZone(bandRect([-f-2.5,-f-2.5,f+2.5,f+2.5],[-f,-f,f,f],RED,0.15)));
+  zoneF.add(markZone(rectOutline(-f,-f,f,f,RED,true),1));
 }
 function buildPadZone(r){
   const disc=new THREE.Mesh(new THREE.CircleGeometry(r,48),
@@ -837,10 +838,15 @@ function buildPadZone(r){
   const lab=makeLabel('直径'+(r*2)+'m',0.85,'#1f8a4c','rgba(255,255,255,.85)');
   lab.position.y=0.5; lab.userData.base=1; zonePad.add(lab);
 }
+/* 目視外ホバリング専用の減点円（細則：一等4-2／二等4-2 の「減点区画（目視外での
+   ホバリング時）」＝直径5m＝半径2.5m）。この科目にしか存在しないため、
+   hvセグメントを持つシナリオでのみ生成する。
+   （以前は全科目で生成したうえ毎フレーム visible=true にしていたため、
+     スクエアや円周飛行でも半径2.5mの円が薄く出てしまっていた） */
 function buildHvZone(){
   zoneHv.add(markZone(ringMesh(0,0,0,2.5,YEL,0.18)));
   zoneHv.add(markZone(circleOutline(0,0,2.5,YELL,true),1));
-  const lab=makeLabel('減点円（半径2.5m）',1.2,'#8a6a00','rgba(255,255,255,.85)');
+  const lab=makeLabel('減点円（目視外ホバリング時・半径2.5m）',1.2,'#8a6a00','rgba(255,255,255,.85)');
   lab.position.y=0.5; lab.userData.base=1; zoneHv.add(lab);
 }
 
@@ -849,7 +855,10 @@ function buildCourse(sc){
   [courseGroup,zoneF,zoneD,zonePad,zoneHv].forEach(disposeGroup);
   clearTrail();
   buildPadZone(sc.padR);
-  buildHvZone(); zoneHv.visible=false;
+  const hvSeg = sc.segs && sc.segs.find(s=>s.z&&s.z.hv);
+  if(hvSeg){ buildHvZone(); zoneHv.position.set(hvSeg.z.hv[0],0,hvSeg.z.hv[1]); }
+  zoneHv.visible = !!hvSeg;
+  zoneAlpha.hv = 0.12;
 
   const cs=sc.course;
   if(cs==='square'||cs==='square25'||cs==='line'||cs==='line25'){
@@ -917,8 +926,6 @@ function buildCourse(sc){
     person(sc.assist[0],sc.assist[1],'試験員補助員',0x8a8f79,false,'区画進入を試験員へ通知'));
   const fp=sc.segs && sc.segs.find(s=>s.z&&s.z.p);
   if(fp) zonePad.position.set(fp.z.p[0],0,fp.z.p[1]);
-  const fh=sc.segs && sc.segs.find(s=>s.z&&s.z.hv);
-  if(fh) zoneHv.position.set(fh.z.hv[0],0,fh.z.hv[1]);
   setNight(!!sc.night);
   refreshZoneMats();
 }
@@ -1042,8 +1049,7 @@ function updateZones(seg, dt){
   lerpZone('f',!!z.f,dt);
   lerpZone('d',!!(z.d),dt);
   lerpZone('p',!!z.p,dt);
-  zoneHv.visible=true;
-  lerpZone('hv',!!z.hv,dt);
+  if(zoneMats.hv.length) lerpZone('hv',!!z.hv,dt);   // 目視外科目のみ（他科目では未生成）
   if(z.p) zonePad.position.set(z.p[0],0,z.p[1]);
   if(z.hv) zoneHv.position.set(z.hv[0],0,z.hv[1]);
   const emgMove=(seg.emg && seg.t==='move' && !z.d && z.f);
