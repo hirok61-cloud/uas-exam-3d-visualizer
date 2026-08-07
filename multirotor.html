@@ -102,6 +102,13 @@
     border-radius:6px; padding:6px 12px; font-size:11px; color:#333; display:flex; gap:13px; pointer-events:none; flex-wrap:wrap;
   }
   #legend i{display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:-1px; margin-right:4px;}
+  /* 機体に追従する高度タグ（毎フレームのテクスチャ生成を避けるためDOMで描く） */
+  #altTag{
+    position:absolute; left:0; top:0; transform:translate(-9999px,-9999px);
+    background:rgba(14,26,46,.82); color:#fff; font-size:11.5px; font-weight:700;
+    padding:2px 8px; border-radius:11px; white-space:nowrap; pointer-events:none;
+    border:1px solid rgba(255,255,255,.32); display:none;
+  }
   #pipLabel{
     position:absolute; right:12px; font-size:11px; font-weight:700; color:#fff;
     background:rgba(12,22,40,.85); padding:3px 10px; border-radius:5px 5px 0 0; display:none; pointer-events:none;
@@ -175,6 +182,9 @@
           <option value="light">軽量（動作優先）</option>
         </select>
       </label>
+      <label title="飛行経路・区画の寸法と現在高度を3D画面に表示します">
+        <input type="checkbox" id="dimChk" checked onchange="setDims(this.checked)"> 寸法表示
+      </label>
       <span class="hint" id="qNote"></span>
       <div class="spacer"></div>
       <span class="hint">区画はフェーズにより適用が変化します（適用中＝濃く表示／対象外＝薄く表示）</span>
@@ -203,6 +213,7 @@
       <div class="zfoot" id="zfoot">濃く点灯している区画のみが現在のフェーズで適用中　<span id="fps" style="opacity:.55"></span></div>
       </div>
     </div>
+    <div id="altTag"></div>
     <div id="emg">⚠ 緊急事態発生</div>
     <div id="pipLabel">機体カメラ映像（受験者はこの画像のみで操縦）</div>
     <div id="legend">
@@ -212,6 +223,7 @@
       <span><i style="background:#2f7bd9"></i>飛行経路／軌跡</span>
       <span><i style="background:#555"></i>▲＝機首方向</span>
       <span><i style="background:#8a8f79"></i>試験員補助員（区画進入を試験員へ通知）</span>
+      <span>地面グリッド＝1m方眼</span>
     </div>
   </div>
 
@@ -577,7 +589,8 @@ grid.material.opacity=0.35; grid.material.transparent=true; scene.add(grid);
 // ---------- ヘルパー ----------
 const courseGroup=new THREE.Group(), trailGroup=new THREE.Group();
 const zoneF=new THREE.Group(), zoneD=new THREE.Group(), zonePad=new THREE.Group(), zoneHv=new THREE.Group();
-scene.add(courseGroup, trailGroup, zoneF, zoneD, zonePad, zoneHv);
+const dimGroup=new THREE.Group();
+scene.add(courseGroup, trailGroup, zoneF, zoneD, zonePad, zoneHv, dimGroup);
 
 /* ラベルテクスチャはシナリオ切替のたびに作り直すとGPUメモリを食い、
    切替時のカクつき（ヒッチ）の原因になるためキャッシュして使い回す */
@@ -850,9 +863,123 @@ function buildHvZone(){
   lab.position.y=0.5; lab.userData.base=1; zoneHv.add(lab);
 }
 
+/* ---------- 寸法表示 ----------
+   3D画面内に「どれだけの広さ／距離を飛ぶのか」を出す。
+   寸法値はすべて区画生成に使うのと同じ数値から計算するので、区画とズレない。 */
+const DIMC=0x33415a;
+function dimMat(){ return new THREE.LineBasicMaterial({color:DIMC,transparent:true,opacity:0.5}); }
+function dimSeg(ax,az,bx,bz,text,opt){
+  opt=opt||{};
+  const y=0.06, g=new THREE.Group();
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(ax,y,az),new THREE.Vector3(bx,y,bz)]), dimMat()));
+  const dx=bx-ax, dz=bz-az, L=Math.hypot(dx,dz)||1;
+  const nx=-dz/L*(opt.tick||0.35), nz=dx/L*(opt.tick||0.35);
+  [[ax,az],[bx,bz]].forEach(p=>{
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+      [new THREE.Vector3(p[0]-nx,y,p[1]-nz),new THREE.Vector3(p[0]+nx,y,p[1]+nz)]), dimMat()));
+  });
+  const lab=makeLabel(text, opt.scale||0.8, '#23303f', 'rgba(255,255,255,.8)');
+  lab.position.set((ax+bx)/2, opt.labY||0.45, (az+bz)/2);
+  g.add(lab);
+  return g;
+}
+function dimTag(x,z,text,color,scale){
+  const lab=makeLabel(text, scale||0.8, color||'#3d4a5c', 'rgba(255,255,255,.8)');
+  lab.position.set(x, 0.45, z); return lab;
+}
+/* 区画サイズ等のまとめ表示。地面に散らすとラベル同士が重なるので、
+   コース外の一点に「上へ積む」形で置く（スプライトは常に正対するため
+   Y方向のオフセットは視点を変えても重ならない） */
+function infoStack(x, z, rows){
+  const g=new THREE.Group();
+  rows.forEach((r,i)=>{
+    const lab=makeLabel(r[0], r[2]||0.82, r[1]||'#3d4a5c', 'rgba(255,255,255,.82)');
+    lab.position.set(x, 0.55 + (rows.length-1-i)*0.95, z);
+    g.add(lab);
+  });
+  return g;
+}
+function buildDims(sc){
+  const cs=sc.course, G=dimGroup;
+  const YTXT='#8a6a00', RTXT='#b02a20', FTXT='#3d4a5c', HTXT='#1f5fa8';
+  const rows=[];
+  let anchorX=0, anchorZ=0;
+  // 必要フィールド＝不合格区画＋周囲マージン（細則図：基本/目視外1.5m・25kg以上5m）
+  const margin=(cs==='square25'||cs==='line25'||cs==='circle25')?5:1.5;
+
+  if(cs==='square'||cs==='square25'){
+    const big=(cs==='square25'), dOff=big?2.5:1.5, fOff=big?6:2.5;
+    const pw=13, ph=5, fw=pw+fOff*2, fh=ph+fOff*2;
+    G.add(dimSeg(-6.5, 0.9, 6.5, 0.9, '飛行経路 13m'));
+    G.add(dimSeg(-7.4-fOff*0.15, -5, -7.4-fOff*0.15, 0, '5m'));
+    rows.push(['減点区画 '+fmt(pw+dOff*2)+'m × '+fmt(ph+dOff*2)+'m（経路より縦横'+dOff+'m）', YTXT],
+              ['不合格区画 '+fmt(fw)+'m × '+fmt(fh)+'m（経路より縦横'+fOff+'m）', RTXT],
+              ['必要フィールド 約'+fmt(fw+margin*2)+'m × '+fmt(fh+margin*2)+'m', FTXT]);
+    anchorX=-fw/2-margin*0.5; anchorZ=-fh/2-margin*0.6;
+  }
+  if(cs==='line'||cs==='line25'||cs==='bvlos1'){
+    const big=(cs==='line25'), dOff=big?2.5:1.5, fOff=big?6:2.5;
+    const pw=13, fw=pw+fOff*2, fh=fOff*2;
+    G.add(dimSeg(-6.5, 1.1, 6.5, 1.1, '直線飛行経路 13m（片道）'));
+    G.add(dimSeg(0, -0.8, 6.5, -0.8, 'A→B 6.5m', {scale:0.72}));
+    rows.push(['減点区画 '+fmt(pw+dOff*2)+'m × '+fmt(dOff*2)+'m（経路より縦横'+dOff+'m）', YTXT],
+              ['不合格区画 '+fmt(fw)+'m × '+fmt(fh)+'m（経路より縦横'+fOff+'m）', RTXT],
+              ['必要フィールド 約'+fmt(fw+margin*2)+'m × '+fmt(fh+margin*2)+'m', FTXT]);
+    if(cs==='bvlos1') rows.push(['緊急着陸地点まで 6.5m（左右いずれか）', FTXT]);
+    anchorX=-fw/2-margin*0.5; anchorZ=-fh/2-margin*1.2;
+  }
+  if(cs==='fig8'){
+    G.add(dimSeg(0, 2.5, 5, 2.5, '円 直径5m', {scale:0.75}));
+    G.add(dimSeg(-5, -3.1, 5, -3.1, '経路外形 10m × 5m', {scale:0.75}));
+    rows.push(['減点区画 13m × 8m（経路より縦横1.5m）', YTXT],
+              ['不合格区画 15m × 10m（経路より縦横2.5m）', RTXT],
+              ['必要フィールド 約18m × 13m', FTXT]);
+    anchorX=-8.2; anchorZ=-6.4;
+  }
+  if(cs==='pirouette'){
+    const d=sc.geom.d, f=sc.geom.f;
+    // 2本のラベルは左右反対側＋高さ違いに置いて重なりを避ける
+    G.add(dimSeg(0,0,d,0, '減点 半径'+d+'m', {scale:0.72, labY:0.55}));
+    G.add(dimSeg(0,0,-f,0, '不合格 半径'+f+'m', {scale:0.72, labY:1.6}));
+    rows.push(['その場でホバリング（水平移動なし）', FTXT],
+              ['約20秒で1回転（16秒未満・26秒以上は減点）', FTXT]);
+    anchorX=-f-1.2; anchorZ=-f-1.2;
+  }
+  if(cs==='circle25'){
+    G.add(dimSeg(-5, 0, 5, 0, '円周飛行 直径10m（1周 約31.4m）', {scale:0.8, labY:0.8}));
+    rows.push(['減点区画 15m角（経路より縦横2.5m）＋中心側 半径2.5m', YTXT],
+              ['不合格区画 22m角（経路より縦横6m）', RTXT],
+              ['必要フィールド 約32m × 32m', FTXT]);
+    anchorX=-13.5; anchorZ=-13.5;
+  }
+  if(cs==='bvlos2'){
+    rows.push(['目視外ホバリング：減点円 半径2.5m 以内を保持', YTXT]);
+    anchorX=0; anchorZ=-4.2;
+  }
+
+  /* この科目で飛ぶ高度。move区間の高度は a[2]/b[2] に入っているので
+     それも拾わないと、高度変化科目（1.5m⇄3.5m 等）の上側が抜ける */
+  const hv=[];
+  (sc.segs||[]).forEach(s=>{
+    if(typeof s.h==='number') hv.push(s.h);
+    if(s.a) hv.push(s.a[2]);
+    if(s.b) hv.push(s.b[2]);
+  });
+  const hs=[...new Set(hv.filter(v=>typeof v==='number').map(v=>Math.round(v*10)/10))].sort((a,b)=>a-b);
+  if(hs.length){
+    rows.unshift([hs.length>1
+      ? '飛行高度 '+hs[0]+'m ⇄ '+hs[hs.length-1]+'m（高度変化あり）'
+      : '飛行高度 '+hs[0]+'m（一定）', HTXT, 0.86]);
+  }
+  if(rows.length) G.add(infoStack(anchorX, anchorZ, rows));
+  G.traverse(o=>{ if(o.material) o.material.depthWrite=false; });
+}
+function fmt(v){ return (Math.round(v*10)/10).toString(); }
+
 // ---------- コース構築 ----------
 function buildCourse(sc){
-  [courseGroup,zoneF,zoneD,zonePad,zoneHv].forEach(disposeGroup);
+  [courseGroup,zoneF,zoneD,zonePad,zoneHv,dimGroup].forEach(disposeGroup);
   clearTrail();
   buildPadZone(sc.padR);
   const hvSeg = sc.segs && sc.segs.find(s=>s.z&&s.z.hv);
@@ -926,6 +1053,7 @@ function buildCourse(sc){
     person(sc.assist[0],sc.assist[1],'試験員補助員',0x8a8f79,false,'区画進入を試験員へ通知'));
   const fp=sc.segs && sc.segs.find(s=>s.z&&s.z.p);
   if(fp) zonePad.position.set(fp.z.p[0],0,fp.z.p[1]);
+  buildDims(sc); dimGroup.visible=showDims;
   setNight(!!sc.night);
   refreshZoneMats();
 }
@@ -955,6 +1083,8 @@ function setNight(on){
   grid.material.opacity=on?0.12:0.35;
   ground.material.color.set(on?0x2c3a2c:0x9fbf8a);
   droneAux.leds.forEach(l=>l.visible=on);
+  // 夜間は寸法線が地面に沈むので明るくする（ラベルは白地なのでそのまま）
+  dimGroup.traverse(o=>{ if(o.isLine && o.material) o.material.color.set(on?0xa8bcd8:DIMC); });
 }
 
 // ---------- 飛行軌跡（固定長バッファ・使い回し） ----------
@@ -980,6 +1110,8 @@ function pushTrail(x,y,z){
 }
 
 // ---------- アニメーションエンジン ----------
+let showDims=true;
+try{ showDims = localStorage.getItem('uas3dDims')!=='0'; }catch(e){}
 let curClass=1, curScIdx=0, playing=false, t=0, SPEED=1;
 let yawCur=0, lastTrailT=0;
 
@@ -1131,6 +1263,12 @@ function togglePlay(){
   document.getElementById('btnPlay').textContent=playing?'⏸ 一時停止':'▶ 再生';
   forceRender=true;
 }
+function setDims(on){
+  showDims=on; dimGroup.visible=on;
+  if(!on) document.getElementById('altTag').style.display='none';
+  try{ localStorage.setItem('uas3dDims', on?'1':'0'); }catch(e){}
+  forceRender=true;
+}
 function setView(v){ camMode=v;
   const sc=SCENARIOS[curClass][curScIdx];
   if(v==='bird'){sph={theta:0.5,phi:1.05,r:sc.cam||26};}
@@ -1174,6 +1312,25 @@ function updateCamera(dt){
   camSettled = camera.position.distanceToSquared(_camPos) < 0.0004;
   camera.position.lerp(_camPos,k);
   camera.lookAt(_camTgt);
+}
+
+/* 機体の真横に「高度○m」を出す。3D空間の点をスクリーン座標に射影してDOMを動かす
+   （スプライトだと毎フレームのテクスチャ再生成が必要になり重いため） */
+const _tagV=new THREE.Vector3();
+let _tagTxt='', _tagShown=false;
+function updateAltTag(p,w,h){
+  const el=document.getElementById('altTag');
+  if(!showDims || !(w>0) || !(h>0)){ if(_tagShown){el.style.display='none'; _tagShown=false;} return; }
+  _tagV.set(p.x, p.y+0.5, p.z).project(camera);
+  if(_tagV.z>1 || _tagV.x<-1.1 || _tagV.x>1.1 || _tagV.y<-1.1 || _tagV.y>1.1){
+    if(_tagShown){ el.style.display='none'; _tagShown=false; }
+    return;
+  }
+  if(!_tagShown){ el.style.display='block'; _tagShown=true; }
+  const sx=(_tagV.x*0.5+0.5)*w + 14, sy=(-_tagV.y*0.5+0.5)*h - 10;
+  el.style.transform='translate('+Math.round(sx)+'px,'+Math.round(sy)+'px)';
+  const txt='高度 '+p.y.toFixed(1)+'m';
+  if(_tagTxt!==txt){ _tagTxt=txt; el.textContent=txt; }
 }
 
 // ---------- メインループ ----------
@@ -1266,6 +1423,8 @@ function loop(now){
   renderer.setViewport(0,0,w,h);
   renderer.render(scene,camera);
 
+  updateAltTag(p,w,h);
+
   // 目視外：機体カメラ映像（右下PiP）
   if(sc.bvlos){
     const vw=Math.floor(w*0.30), vh=Math.floor(vw*0.62);
@@ -1294,6 +1453,7 @@ if(window.matchMedia('(max-width:760px)').matches){ toggleInfo(); }
 
 // ---------- 初期化 ----------
 { const qs=document.getElementById('quality'); if(qs) qs.value=qMode; }   // 保存された品質設定を反映
+{ const dc=document.getElementById('dimChk'); if(dc) dc.checked=showDims; }
 renderScenarioButtons();
 selectScenario(0);
 requestAnimationFrame(loop);
