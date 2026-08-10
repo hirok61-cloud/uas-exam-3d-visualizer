@@ -462,6 +462,17 @@ scene.fog = new THREE.Fog(0xbfd9ee, 1400, 5200);
 
 const camera = new THREE.PerspectiveCamera(50, 2, 1, 12000);
 let camMode='bird', sph={theta:0.55, phi:0.85, r:900};
+let userZoomed=false;              // 手動でズーム/回転したら自動フィットを止める
+// 空域全体が画面に収まる距離。斜め俯瞰でも切れないよう外接球で見積もる
+function fitDistance(c){
+  if(!c) return 900;
+  const R=Math.hypot(c.W/2, c.D/2, CEIL/2)*1.10;   // 余白込みの外接球半径
+  const vFov=camera.fov*Math.PI/180;
+  const asp=Math.max(0.35, camera.aspect||1.6);
+  const hFov=2*Math.atan(Math.tan(vFov/2)*asp);
+  // 外接球は平たい空域に対して余裕を取りすぎるので、実測に合わせて詰める
+  return R/Math.sin(Math.min(vFov,hFov)/2)*0.86;
+}
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x7f8f9c, 0.72));
 const sun = new THREE.DirectionalLight(0xfff4e0, 0.75);
@@ -746,6 +757,7 @@ function build(c){
 
   PATH=buildPath(c);
   plane.scale.setScalar(Math.max(1.4, c.W/300));
+  if(!userZoomed) sph.r=fitDistance(c);
 }
 
 /* ============================================================
@@ -760,12 +772,13 @@ canvas.addEventListener('pointermove',e=>{
   px=e.clientX; py=e.clientY;
 });
 canvas.addEventListener('pointerup',()=>dragging=false);
-canvas.addEventListener('wheel',e=>{e.preventDefault();
-  sph.r=Math.min(4000,Math.max(80,sph.r+e.deltaY*0.8));},{passive:false});
+canvas.addEventListener('wheel',e=>{e.preventDefault(); userZoomed=true;
+  sph.r=Math.min(8000,Math.max(80,sph.r+e.deltaY*0.8));},{passive:false});
 
 $('viewSel').addEventListener('change',e=>{
   camMode=e.target.value; const c=CUR;
-  const base=Math.max(c.W,c.D)*1.02;
+  userZoomed=false;
+  const base=fitDistance(c);
   if(camMode==='bird'){ sph={theta:0.55,phi:0.85,r:base}; }
   if(camMode==='top'){  sph={theta:0,phi:0.06,r:base*0.95}; }
   if(camMode==='side'){ sph={theta:0,phi:1.5,r:base*0.9}; }
@@ -802,7 +815,9 @@ function updateCamera(dt){
       target.y + sph.r*Math.cos(sph.phi),
       sph.r*Math.sin(sph.phi)*Math.cos(sph.theta));
   }
-  camera.position.lerp(pos, Math.min(1, dt*4));
+  // 目標から大きく離れているとき（初期表示・視点切替・空域の作り直し）は補間せず即座に移動
+  if(camera.position.distanceTo(pos) > sph.r*0.35) camera.position.copy(pos);
+  else camera.position.lerp(pos, Math.min(1, dt*4));
   camera.lookAt(look);
 }
 
@@ -813,6 +828,7 @@ function loop(now){
   const w=canvas.clientWidth, h=canvas.clientHeight;
   if(canvas.width!==Math.floor(w*renderer.getPixelRatio())){
     renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+    if(!userZoomed) sph.r=fitDistance(CUR);
   }
   const c=CUR;
   if(PATH && c){
@@ -1030,7 +1046,10 @@ $("presetCK").addEventListener("click", ()=>applyPreset(CKP));
 
 /* ---- 初期化 ---- */
 update();
-sph.r=Math.max(CUR.W,CUR.D)*1.02;
+camera.aspect=Math.max(0.35, canvas.clientWidth/Math.max(1,canvas.clientHeight));
+camera.updateProjectionMatrix();
+sph.r=fitDistance(CUR);
+updateCamera(1);
 if(window.matchMedia('(max-width:760px)').matches){ $('infoToggle').click(); }
 requestAnimationFrame(loop);
 </script>
