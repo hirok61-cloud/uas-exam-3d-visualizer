@@ -132,6 +132,11 @@
   .keybox{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-top:10px; font-size:13.5px;}
   .keybox b.big{font-size:15px;}
   @media (max-width:760px){ #stage{height:430px;} header.doc h1{font-size:17px;} }
+  .pagenav{background:var(--navy-d); padding:0 28px; display:flex; gap:2px; flex-wrap:wrap;}
+  .pagenav a{color:#b9c7dd; text-decoration:none; font-size:12.5px; font-weight:700; padding:9px 16px; border-radius:6px 6px 0 0;}
+  .pagenav a:hover{background:rgba(255,255,255,.10); color:#fff;}
+  .pagenav a.on{background:var(--paper); color:var(--navy);}
+  @media (max-width:760px){ .pagenav{padding:0 10px;} .pagenav a{padding:9px 11px; font-size:12px;} }
 </style>
 </head>
 <body>
@@ -141,6 +146,13 @@
   <h1>一等・二等 無人航空機操縦士 実地試験　3Dフライトビジュアライザー〈ヘリコプター〉</h1>
   <div class="sub">実技試験の全科目（基本＋夜間・目視外・25kg以上の限定変更）の飛行経路・高度・機首方向・緊急操作を3Dアニメーションで再現。減点区画・不合格区画は飛行フェーズに応じて明滅し、「いま適用されている区画」が一目で分かります。ヘリコプターは<b>メインローターマストの位置</b>で区画進入を判定します（機体下の縦点線＝マスト直下）。ドラッグで視点回転、ホイール／ピンチで拡大縮小。</div>
 </header>
+<nav class="pagenav">
+  <a href="index.html">機種一覧</a>
+  <a href="airplane.html">飛行機：飛行経路3D</a>
+  <a href="airspace.html">飛行機：空域計算3D</a>
+  <a href="multirotor.html">マルチローター</a>
+  <a href="helicopter.html" class="on">ヘリコプター</a>
+</nav>
 
 <div class="wrap">
 
