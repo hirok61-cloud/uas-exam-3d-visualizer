@@ -148,6 +148,9 @@
     #stage{height:400px;}
     .pagenav{padding:0 10px;}
     .pagenav a{padding:9px 11px; font-size:12px;}
+    /* iOSのオーバーレイ型スクロールバーは触れるまで見えず、横スクロールできる
+       ことに気づけないため、式は折り返して全文が見える形にする */
+    .step .formula{white-space:normal; overflow-x:visible; font-size:13px; line-height:1.6; word-break:break-word;}
   }
 </style>
 </head>
@@ -160,7 +163,7 @@
 </header>
 <nav class="pagenav">
   <a href="index.html">機種一覧</a>
-  <a href="airplane.html">飛行機：飛行経路3D</a>
+  <a href="airplane.html">飛行機</a>
   <a href="airspace.html" class="on">飛行機：空域計算3D</a>
   <a href="multirotor.html">マルチローター</a>
   <a href="helicopter.html">ヘリコプター</a>
