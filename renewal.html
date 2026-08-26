@@ -294,7 +294,7 @@
       <tr><th>マルチローター 一等（8の字）</th><td>イエロー＝経路より縦横<b>1.5m</b>／レッド＝<b>2.5m</b>。<b>イエローゾーンは緊急着陸時には無効</b>。</td></tr>
       <tr><th>マルチローター 二等（直線）</th><td>イエロー＝経路より縦横<b>1.5m</b>／レッド＝<b>2.5m</b>。イエローは<b>離着陸地点からA地点への移動時及び緊急着陸時は無効</b>。</td></tr>
       <tr><th>ヘリコプター 一等（高高度）</th><td>ゾーン設定なし。A地点（高度50m）・B地点（高度100m）に<b>直径30m</b>の目安サークル、離着陸地点は直径5m。受講者の立ち位置は離着陸地点から20m。</td></tr>
-      <tr><th>ヘリコプター 二等（側方移動）</th><td>イエロー＝経路より縦横<b>2.5m</b>／レッド＝<b>6m</b>。いずれも<b>横方向への移動時のみ有効</b>。</td></tr>
+      <tr><th>ヘリコプター 二等（側方移動）</th><td>イエロー＝経路より縦横<b>2.5m</b>／レッド＝<b>6m</b>。いずれも<b>横方向への移動時のみ有効</b>。受講者の立ち位置は<b>H地点から30m</b>（飛行経路から20m）、実機で行う場合の必要空域は<b>約60m×50m</b>。</td></tr>
       <tr><th>飛行機（一等・二等）</th><td>受講者位置からの開き角度で設定：内側イエロー線<b>±40°</b>・外側イエロー線<b>±65°</b>・レッド線<b>±70°</b>。<b>A地点到達の通知前（離陸時）とB地点到達の通知後（着陸時）は区画線無効</b>。講師は受講者の真後ろに立ち進入を通知。</td></tr>
     </tbody>
   </table>
@@ -595,8 +595,8 @@ const SCEN = {
         {no:'(8)', tx:'振り返り・フィードバック', lim:'10分以上'}],
       segs:hHighSegs() },
   2:{ name:'二等 ヘリコプター：側方移動＋緊急着陸', mode:'OFF', modeName:'位置安定機能',
-      req:'講習（1）〜（3）計10分以上＋振り返り・フィードバック5分以上｜ゾーンは横方向への移動時のみ有効',
-      course:'hline', vehicle:'heli', stand:30, cam:52,
+      req:'講習（1）〜（3）計10分以上＋振り返り・フィードバック5分以上｜ゾーンは横方向への移動時のみ有効｜必要空域 約60m×50m',
+      course:'hline', vehicle:'heli', stand:20, cam:60,
       world:{fogN:120, fogF:520, grid:'fine'},
       steps:[
         {no:'(1)', tx:'離陸→5m・5秒ホバリング', lim:'制限2分'},
@@ -1202,11 +1202,12 @@ function buildDims(sc){
       ['必要空域 約21m×8m・高さ8.5m｜立ち位置 8.5m', FTXT]]));
   }
   if(cs==='hline'){
-    G.add(infoStack(-20,-11.5,[
+    G.add(infoStack(-22,-11.5,[
       ['飛行高度 5m｜直線経路 20m（E⇄B）', HTXT, 1.7],
       ['イエローゾーン境界 25m×5m（経路より縦横2.5m）', YTXT, 1.7],
       ['レッドゾーン境界 32m×12m（経路より縦横6m）', RTXT, 1.7],
-      ['ゾーンは横移動時のみ有効｜立ち位置 30m', FTXT, 1.7]], 1.7, 2.0));
+      ['必要空域 約60m×50m（実機で行う場合の想定）', FTXT, 1.7],
+      ['受講者・講師はH地点から30m（飛行経路から20m）', FTXT, 1.7]], 1.7, 2.0));
   }
   if(cs==='hhigh'){
     G.add(infoStack(-40,-30,[
@@ -1274,10 +1275,14 @@ function buildCourse(sc){
     buildPadZone([0,-10],2.5);
     const star=makeLabel('指定された緊急着陸地点（H・離着陸地点）',2.2,'#fff','rgba(214,58,47,.92)');
     star.position.set(0,4,-10); courseGroup.add(star);
+    // 必要空域（実施要領図：約60m×50m。H円のやや奥〜受講者の後方まで）
+    courseGroup.add(rectOutline(-30,-15,30,35,0x8a94a2,true,0.03,1.6,1.1));
+    const fl=makeLabel('必要空域（約60m×50m）',2.0,'#5a6472','rgba(255,255,255,.85)');
+    fl.position.set(0,1.4,-13.2); courseGroup.add(fl);
     courseGroup.add(person(1.4,sc.stand,'受講者',0x2f5fa8,1.6));
     courseGroup.add(person(-1.4,sc.stand,'講師',0x666e79,1.6));
     courseGroup.add(person(-16,sc.stand-6,'補助員',0x8a8f79,1.6,'必要に応じ操作介入'));
-    courseGroup.add(windVane(-19,10,PI/4,1.6));
+    courseGroup.add(windVane(-24,10,PI/4,1.6));
   }
   if(cs==='hhigh'){
     courseGroup.add(hPad(0,0,2.5));
