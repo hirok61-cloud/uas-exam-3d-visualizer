@@ -1,0 +1,23 @@
+{
+  // Cloudflare Workers（静的アセットのみ）の配信設定。
+  //   本番: https://uas-exam-3d-visualizer.hiro-k61.workers.dev
+  //
+  // main を持たないので Worker スクリプトは動かず、HTML をそのまま配るだけ。
+  // 手動デプロイ:
+  //   npx wrangler@latest deploy
+  //
+  // ダッシュボードで GitHub 連携（Workers Builds）を繋げば push だけで更新される。
+  // 同じリポジトリは Vercel（uas-exam-3d-visualizer-rg39.vercel.app）にも
+  // 自動デプロイされており、当面は両方が並存する。
+  "name": "uas-exam-3d-visualizer",
+  "compatibility_date": "2026-08-28",
+  "assets": {
+    // リポジトリ直下をそのまま配信する。除外は .assetsignore で指定。
+    // **.wrangler を必ず除外すること**（アカウントIDとメールアドレスを含む
+    //   キャッシュファイルが公開されてしまう。2026-08-28に実際に起きた）
+    "directory": ".",
+    // 既定値。/renewal.html は /renewal へ307リダイレクトされる（内容は同じ）
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}
