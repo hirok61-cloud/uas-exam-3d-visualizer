@@ -1,7 +1,11 @@
-.git
+.wrangler/
+.git/
+.github/
 .gitignore
 .assetsignore
-.wrangler
+node_modules/
 wrangler.jsonc
+scripts/
+data/
+.DS_Store
 README.md
-node_modules

@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>無人航空機操縦士 実地試験 3Dフライトビジュアライザー（飛行機）</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjMwIiBmaWxsPSIjMTczMzVmIi8+CjxnIHN0cm9rZT0iI2VhZjFmYiIgc3Ryb2tlLXdpZHRoPSIzLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CjxsaW5lIHgxPSIxOSIgeTE9IjE5IiB4Mj0iNDUiIHkyPSI0NSIvPgo8bGluZSB4MT0iNDUiIHkxPSIxOSIgeDI9IjE5IiB5Mj0iNDUiLz4KPC9nPgo8Y2lyY2xlIGN4PSIxOSIgY3k9IjE5IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPGNpcmNsZSBjeD0iNDUiIGN5PSIxOSIgcj0iNi40IiBmaWxsPSIjZTg2NDJjIi8+CjxjaXJjbGUgY3g9IjE5IiBjeT0iNDUiIHI9IjYuNCIgZmlsbD0iI2U4NjQyYyIvPgo8Y2lyY2xlIGN4PSI0NSIgY3k9IjQ1IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPHJlY3QgeD0iMjUuNSIgeT0iMjUuNSIgd2lkdGg9IjEzIiBoZWlnaHQ9IjEzIiByeD0iMy4yIiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPgo=">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<meta name="description" content="一等・二等飛行機の実地試験(周回・8の字・自動操縦)の飛行経路と開き角度区画線を3Dで再現。">
+<link rel="canonical" href="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/airplane">
+<meta property="og:type" content="website">
+<meta property="og:title" content="実地試験 3Dビジュアライザー(飛行機)">
+<meta property="og:description" content="一等・二等飛行機の実地試験(周回・8の字・自動操縦)の飛行経路と開き角度区画線を3Dで再現。">
+<meta property="og:url" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/airplane">
+<meta property="og:image" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/assets/ogp.png">
+<meta property="og:site_name" content="無人航空機 3Dフライトビジュアライザー">
+<meta name="twitter:card" content="summary_large_image">
+<script src="vendor/three.min.js"></script>
 <style>
   :root{
     --navy:#17335f; --navy-d:#0f2547; --teal:#0e6e63; --teal-d:#0a5049;
@@ -1087,5 +1096,16 @@ renderScenarioButtons();
 selectScenario(0);
 requestAnimationFrame(loop);
 </script>
+<script>
+window.PLAYER_CFG={
+  id:'airplane',
+  state:()=>curClass+'-'+curScIdx,
+  apply:h=>{const m=h.match(/^([12])-(\d+)$/); if(m){ setClass(+m[1]); if(SCENARIOS[+m[1]][+m[2]]) selectScenario(+m[2]); }},
+  scen:()=>SCENARIOS[curClass][curScIdx],
+  name:()=>(curClass===1?'一等_':'二等_')+SCENARIOS[curClass][curScIdx].name,
+  ticks:()=>[]
+};
+</script>
+<script src="vendor/player-extras.js"></script>
 </body>
 </html>
