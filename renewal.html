@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>無人航空機 更新講習（実地講習）3Dフライトビジュアライザー</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjMwIiBmaWxsPSIjMTczMzVmIi8+CjxnIHN0cm9rZT0iI2VhZjFmYiIgc3Ryb2tlLXdpZHRoPSIzLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CjxsaW5lIHgxPSIxOSIgeTE9IjE5IiB4Mj0iNDUiIHkyPSI0NSIvPgo8bGluZSB4MT0iNDUiIHkxPSIxOSIgeDI9IjE5IiB5Mj0iNDUiLz4KPC9nPgo8Y2lyY2xlIGN4PSIxOSIgY3k9IjE5IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPGNpcmNsZSBjeD0iNDUiIGN5PSIxOSIgcj0iNi40IiBmaWxsPSIjZTg2NDJjIi8+CjxjaXJjbGUgY3g9IjE5IiBjeT0iNDUiIHI9IjYuNCIgZmlsbD0iI2U4NjQyYyIvPgo8Y2lyY2xlIGN4PSI0NSIgY3k9IjQ1IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPHJlY3QgeD0iMjUuNSIgeT0iMjUuNSIgd2lkdGg9IjEzIiBoZWlnaHQ9IjEzIiByeD0iMy4yIiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPgo=">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<meta name="description" content="無人航空機更新講習・返納講習の実地講習をマルチ/ヘリ/飛行機×一等・二等で3D再現。シミュレーター設定ガイダンス要点付き。">
+<link rel="canonical" href="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/renewal">
+<meta property="og:type" content="website">
+<meta property="og:title" content="更新講習(実地講習)3Dビジュアライザー">
+<meta property="og:description" content="無人航空機更新講習・返納講習の実地講習をマルチ/ヘリ/飛行機×一等・二等で3D再現。シミュレーター設定ガイダンス要点付き。">
+<meta property="og:url" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/renewal">
+<meta property="og:image" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/assets/ogp.png">
+<meta property="og:site_name" content="無人航空機 3Dフライトビジュアライザー">
+<meta name="twitter:card" content="summary_large_image">
+<script src="vendor/three.min.js"></script>
 <style>
   :root{
     --navy:#17335f; --navy-d:#0f2547; --teal:#0e6e63; --teal-d:#0a5049;
@@ -117,6 +126,11 @@
     border-radius:6px; padding:6px 12px; font-size:11px; color:#333; display:flex; gap:13px; pointer-events:none; flex-wrap:wrap;
   }
   #legend i{display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:-1px; margin-right:4px;}
+  #pipLabel{
+    position:absolute; right:12px; font-size:11px; font-weight:700; color:#fff;
+    background:rgba(12,22,40,.85); padding:3px 10px; border-radius:5px 5px 0 0;
+    display:none; pointer-events:none;
+  }
   #altTag{
     position:absolute; top:0; left:0; display:none; pointer-events:none;
     font-size:11px; font-weight:700; color:#1c2430; background:rgba(255,255,255,.88);
@@ -146,6 +160,34 @@
   .note{font-size:11.5px; color:#6b7583; margin-top:8px;}
   .keybox{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-top:10px; font-size:13.5px;}
   .keybox b.big{font-size:15px;}
+  /* ------- 送信機図解 ------- */
+  .txwrap{background:#fff; border:1px solid var(--line); border-radius:10px; margin-top:12px; overflow:hidden;}
+  .txtabs{display:flex; border-bottom:1px solid var(--line); background:#eef1f5;}
+  .txtabs button{flex:1; padding:11px 8px; font-size:13.5px; font-weight:700; border:none; cursor:pointer;
+    background:transparent; color:#5a6472; font-family:inherit; border-bottom:3px solid transparent; transition:.15s;}
+  .txtabs button.on{background:#fff; color:var(--ink); border-bottom-color:#2e8b57;}
+  .txbody{display:flex; gap:28px; justify-content:center; align-items:flex-start; flex-wrap:wrap; padding:26px 16px 10px;}
+  .txstick{display:grid; grid-template-columns:auto auto auto; grid-template-rows:auto auto auto; align-items:center; justify-items:center; gap:4px;}
+  .txstick .side{grid-column:1/4; font-size:12px; font-weight:700; color:#5a6472; margin-top:4px;}
+  .txstick .val{grid-column:1/4; font-size:11px; color:#8a94a2; font-variant-numeric:tabular-nums; min-height:16px;}
+  .txlab{font-size:11px; font-weight:700; color:#3d4a5c; text-align:center; line-height:1.35; min-width:58px;}
+  .txlab small{display:block; font-weight:400; color:#8a94a2; font-size:10px;}
+  .txlab.hold{color:#0e6e63;}
+  .txpad{position:relative; width:168px; height:168px; border-radius:16px; touch-action:none; cursor:grab;
+    background:linear-gradient(145deg,#f3f5f8,#e2e7ee); border:1px solid var(--line);
+    box-shadow:inset 0 2px 6px rgba(30,45,70,.12);}
+  .txpad.short{width:148px; height:148px;}
+  .txpad .cx,.txpad .cy{position:absolute; background:rgba(90,110,140,.22);}
+  .txpad .cx{left:8%; right:8%; top:50%; height:1px;}
+  .txpad .cy{top:8%; bottom:8%; left:50%; width:1px;}
+  .txpad .det{position:absolute; left:6px; width:8px; height:1.5px; background:rgba(14,110,99,.55); transform:translateY(-50%);}
+  .txknob{position:absolute; left:50%; top:50%; width:44px; height:44px; border-radius:50%;
+    transform:translate(-50%,-50%); cursor:grab;
+    background:radial-gradient(circle at 35% 30%, #4a5568, #1c2430 70%);
+    box-shadow:0 3px 8px rgba(15,25,45,.35), inset 0 1px 2px rgba(255,255,255,.25);}
+  .txknob:active{cursor:grabbing;}
+  .txnote{font-size:12.5px; color:#414c5b; padding:6px 20px 16px; margin:0;}
+  @media (prefers-reduced-motion: reduce){ .txknob{transition:none;} }
   @media (max-width:760px){ #stage{height:430px;} header.doc h1{font-size:17px;} }
 </style>
 </head>
@@ -242,6 +284,7 @@
     </div>
     <div id="altTag"></div>
     <div id="emg">⚠ 緊急着陸の口頭指示</div>
+    <div id="pipLabel">機体カメラ映像（目標物をカメラで確認）</div>
     <div id="legend">
       <span><i style="background:#f2b705"></i>イエローゾーン（進入→経路復帰の指導）</span>
       <span><i style="background:#d63a2f"></i>レッドゾーン（進入→講師等が操縦を代替）</span>
@@ -316,6 +359,19 @@
       <tr><th>操作感（送信機）</th><td>マルチ＝<b>モード2</b>・全スティック自動中立・無段階。ヘリ＝<b>モード1</b>・スロットル保持式・スティック短め・トリム調整。飛行機＝<b>モード1</b>・スロットル保持式（段階的なラチェット式が望ましい）・トリム調整。</td></tr>
     </tbody>
   </table>
+
+  <!-- ===== 送信機の操作モード図解 ===== -->
+  <h2 class="sec tg">送信機の操作モード・操作感（さわって確認）</h2>
+  <p class="lede">ガイダンスが求める送信機設定の違いをそのまま再現したインタラクティブ図解です。<b>スティックをドラッグ</b>してみてください。手を離すと<b>ばねで中央に戻る軸</b>、離しても<b>位置が保持されるスロットル</b>（ヘリ・飛行機）、<b>カチカチと段階的に動く</b>飛行機のスロットル（ラチェット式）の違いを体感できます。</p>
+  <div class="txwrap" id="txWrap">
+    <div class="txtabs" id="txTabs">
+      <button data-tx="multi" class="on">マルチコプター（モード2）</button>
+      <button data-tx="heli">ヘリコプター（モード1）</button>
+      <button data-tx="plane">飛行機（モード1）</button>
+    </div>
+    <div class="txbody" id="txBody"></div>
+    <p class="txnote" id="txNote"></p>
+  </div>
 
   <p class="note" style="margin-top:26px">※ 本ページの図・寸法・タイミングは「無人航空機更新講習及び技能証明書返納証明書交付者講習実施要領」（<a href="https://www.mlit.go.jp/koku/content/001972144.pdf">原文PDF</a>）および「更新講習用シミュレーター設定ガイダンス」（<a href="https://www.mlit.go.jp/koku/content/001868641.pdf">原文PDF</a>）の記載をもとにした概念図です。飛行機の経路の位置・規模は受講者が想定し講師と調整するものであり、実際の講習は原文が優先されます。本ページは内部参考資料であり、公的文書ではありません。</p>
 
@@ -395,21 +451,21 @@ function hHighSegs(){
   s.push({t:'hover', p:H, h:1.5, dur:5, st:0, z:{p:H}, label:'5秒間ホバリング（H直上）'});
   s.push({t:'move', a:[...H,1.5], b:[...A,50], dur:18, yaw:'travel', st:1, z:{},
     label:'低速（5〜20km/h程度）でA地点上空・高度50mまで上昇'});
-  s.push({t:'hover', p:A, h:50, dur:10, wob:0.35, st:2, z:{},
+  s.push({t:'hover', p:A, h:50, dur:10, wob:0.35, st:2, pip:1, z:{},
     label:'A地点を示す目標物をカメラで確認 → 正面ホバリング10秒（機首：前方）【直径30mサークル内を保持】'});
-  s.push({t:'rotate', p:A, h:50, dur:4, yaw0:0, turns:0.5, st:2, z:{},
+  s.push({t:'rotate', p:A, h:50, dur:4, yaw0:0, turns:0.5, st:2, pip:1, z:{},
     label:'講師の指示で機首を対面（受講者側）へ旋回'});
-  s.push({t:'hover', p:A, h:50, dur:10, wob:0.35, st:2, z:{},
+  s.push({t:'hover', p:A, h:50, dur:10, wob:0.35, st:2, pip:1, z:{},
     label:'対面ホバリング10秒（機首：受講者側）'});
   s.push({t:'rotate', p:A, h:50, dur:3, yaw0:PI, turns:0.5, st:3, z:{},
     label:'機首を進行方向（前方）へ戻す'});
   s.push({t:'move', a:[...A,50], b:[...B,100], dur:22, yaw:'travel', st:3, z:{},
     label:'低速（5〜20km/h程度）でB地点上空・高度100mまで上昇'});
-  s.push({t:'hover', p:B, h:100, dur:10, wob:0.4, st:4, z:{},
+  s.push({t:'hover', p:B, h:100, dur:10, wob:0.4, st:4, pip:1, z:{},
     label:'B地点を示す目標物をカメラで確認 → 正面ホバリング10秒（機首：前方）'});
-  s.push({t:'rotate', p:B, h:100, dur:4, yaw0:0, turns:0.5, st:4, z:{},
+  s.push({t:'rotate', p:B, h:100, dur:4, yaw0:0, turns:0.5, st:4, pip:1, z:{},
     label:'講師の指示で機首を対面（受講者側）へ旋回'});
-  s.push({t:'hover', p:B, h:100, dur:10, wob:0.4, st:4, z:{},
+  s.push({t:'hover', p:B, h:100, dur:10, wob:0.4, st:4, pip:1, z:{},
     label:'対面ホバリング10秒（機首：受講者側）'});
   s.push({t:'spiral', c:[0,0], r0:140, r1:2, a0:-PI/2, a1:-PI/2+2.6*PI, h0:100, h1:5, dur:30, st:5, z:{},
     label:'旋回しながら低速（5〜20km/h程度）で降下（垂直降下によるボルテックスリングステートを回避）→ 離着陸地点上空5m付近へ'});
@@ -559,7 +615,7 @@ function pFig8Segs2(){
 // ---------- シナリオ定義 ----------
 const SCEN = {
  multi:{
-  1:{ name:'一等 マルチローター：8の字飛行＋緊急着陸', mode:'OFF', modeName:'位置安定機能',
+  1:{ name:'一等 マルチローター：8の字飛行＋緊急着陸', mode:'OFF', modeName:'位置安定機能', law:'3-2', art:'3-2-2', page:6,
       req:'操縦演習（1）〜（3）計5分以上＋振り返り・フィードバック10分以上｜円直径 約5m｜必要空域 約18m×13m（高さ6.5m）',
       course:'mfig8', vehicle:'multi', stand:6.5, cam:22,
       world:{fogN:60, fogF:170, grid:'fine'},
@@ -569,7 +625,7 @@ const SCEN = {
         {no:'(3)', tx:'緊急着陸', lim:'制限4分'},
         {no:'(4)', tx:'振り返り・フィードバック', lim:'10分以上'}],
       segs:mFig8Segs() },
-  2:{ name:'二等 マルチローター：直線上の側方移動＋緊急着陸', mode:'OFF', modeName:'位置安定機能',
+  2:{ name:'二等 マルチローター：直線上の側方移動＋緊急着陸', mode:'OFF', modeName:'位置安定機能', law:'3-3', art:'3-3-2', page:7,
       req:'操縦演習（1）〜（3）計6分以上＋振り返り・フィードバック5分以上｜必要空域 約21m×8m（高さ8.5m）',
       course:'mline', vehicle:'multi', stand:8.5, cam:24,
       world:{fogN:60, fogF:170, grid:'fine'},
@@ -581,7 +637,7 @@ const SCEN = {
       segs:mLineSegs() },
  },
  heli:{
-  1:{ name:'一等 ヘリコプター：高高度飛行（A地点50m・B地点100m）', mode:'OFF', modeName:'位置安定機能',
+  1:{ name:'一等 ヘリコプター：高高度飛行（A地点50m・B地点100m）', mode:'OFF', modeName:'位置安定機能', law:'3-4', art:'3-4-2', page:9,
       req:'講習（1）〜（7）計15分以上＋振り返り・フィードバック10分以上｜A・B地点は直径30mサークル（目安）',
       course:'hhigh', vehicle:'heli', stand:20, cam:170, target:[0,45,-70], defView:'follow',
       world:{fogN:200, fogF:900, grid:'coarse'},
@@ -595,7 +651,7 @@ const SCEN = {
         {no:'(7)', tx:'機首前方→着陸', lim:'制限3分'},
         {no:'(8)', tx:'振り返り・フィードバック', lim:'10分以上'}],
       segs:hHighSegs() },
-  2:{ name:'二等 ヘリコプター：側方移動＋緊急着陸', mode:'OFF', modeName:'位置安定機能',
+  2:{ name:'二等 ヘリコプター：側方移動＋緊急着陸', mode:'OFF', modeName:'位置安定機能', law:'3-5', art:'3-5-2', page:11,
       req:'講習（1）〜（3）計10分以上＋振り返り・フィードバック5分以上｜ゾーンは横方向への移動時のみ有効｜必要空域 約60m×50m',
       course:'hline', vehicle:'heli', stand:20, cam:60,
       world:{fogN:120, fogF:520, grid:'fine'},
@@ -607,7 +663,7 @@ const SCEN = {
       segs:hLineSegs() },
  },
  plane:{
-  1:{ name:'一等 飛行機：周回→8の字（継続）＋緊急着陸', mode:'OFF', modeName:'水平位置安定',
+  1:{ name:'一等 飛行機：周回→8の字（継続）＋緊急着陸', mode:'OFF', modeName:'水平位置安定', law:'3-6', art:'3-6-3', page:13,
       req:'講習（1）〜（5）計10分以上＋振り返り・フィードバック10分以上｜高度はおおむね対地70〜100m',
       course:'pfig8', vehicle:'plane', stand:8, cam:360,
       world:{fogN:700, fogF:2400, grid:'coarse', target:[0,25,-110]},
@@ -619,7 +675,7 @@ const SCEN = {
         {no:'(5)', tx:'緊急着陸（左円周回中に指示）', lim:'制限5分'},
         {no:'(6)', tx:'振り返り・フィードバック', lim:'10分以上'}],
       segs:pFig8Segs1() },
-  2:{ name:'二等 飛行機：周回→8の字→周回→向かい風着陸', mode:'ON', modeName:'水平位置安定',
+  2:{ name:'二等 飛行機：周回→8の字→周回→向かい風着陸', mode:'ON', modeName:'水平位置安定', law:'3-7', art:'3-7-2', page:17,
       req:'講習（1）〜（5）計15分以上＋振り返り・フィードバック5分以上｜高度はおおむね対地70〜100m',
       course:'pfig8', vehicle:'plane', stand:8, cam:360,
       world:{fogN:700, fogF:2400, grid:'coarse', target:[0,25,-110]},
@@ -733,6 +789,10 @@ scene.background = new THREE.Color(0xbfd9ee);
 scene.fog = new THREE.Fog(0xbfd9ee, 60, 170);
 
 const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 4000);
+// 機体カメラ（ヘリ一等の目標物確認PiP用・YXZでヨー→俯角の順に適用）
+const droneCam = new THREE.PerspectiveCamera(70, 1.6, 0.1, 600);
+droneCam.rotation.order='YXZ';
+scene.add(droneCam);
 let CAM_TARGET = new THREE.Vector3(0,1.2,-1.5);
 let camMode='bird', sph={theta:0.5, phi:1.05, r:22};
 
@@ -1353,6 +1413,7 @@ function pushTrail(x,y,z){
 }
 
 // ---------- アニメーション状態 ----------
+let pipShown=false;
 let showDims=true;
 try{ showDims = localStorage.getItem('uas3dDims')!=='0'; }catch(e){}
 let curType='multi', curClass=1, playing=false, t=0, SPEED=1;
@@ -1443,7 +1504,7 @@ function renderSteps(){
   sc.steps.forEach((s,i)=>{
     const b=document.createElement('button');
     b.dataset.st=i;
-    b.innerHTML='<b>'+s.no+'</b> '+s.tx+'<small>'+s.lim+'</small>';
+    b.innerHTML='<b>'+s.no+'</b> '+s.tx+'<small>'+s.lim+(sc.art?'｜'+sc.art+s.no:'')+'</small>';
     b.onclick=()=>jumpToStep(i);
     box.appendChild(b);
   });
@@ -1458,7 +1519,9 @@ function applyScenario(){
   camMode=sc.defView||'bird';
   document.getElementById('viewSel').value=camMode;
   document.getElementById('scName').textContent=sc.name;
-  document.getElementById('scReq').textContent=sc.req;
+  document.getElementById('scReq').innerHTML=sc.req+(sc.law?
+    '｜<a href="https://www.mlit.go.jp/koku/content/001972144.pdf#page='+sc.page+
+    '" target="_blank" rel="noopener" style="color:#2f6fb0;font-weight:700">実施要領 '+sc.law+'（原文PDF p.'+sc.page+'）</a>':'');
   document.getElementById('hudTitle').textContent=sc.name;
   const typeName={multi:'回転翼航空機（マルチローター）', heli:'回転翼航空機（ヘリコプター）', plane:'飛行機'}[curType];
   document.getElementById('hudClass').textContent=
@@ -1689,6 +1752,24 @@ function loop(now){
   renderer.setViewport(0,0,w,h);
   renderer.render(scene,camera);
   updateAltTag(p,w,h);
+
+  // 機体カメラPiP（ヘリ一等：A/B地点の目標物確認）
+  if(p.seg.pip){
+    const vw=Math.floor(w*0.28), vh=Math.floor(vw*0.66);
+    const vx=w-vw-12, vy=46;
+    droneCam.aspect=vw/vh; droneCam.updateProjectionMatrix();
+    droneCam.position.set(p.x, p.y+0.5, p.z);
+    droneCam.rotation.set(-1.15, yawCur, 0);
+    renderer.setScissorTest(true);
+    renderer.setViewport(vx,vy,vw,vh);
+    renderer.setScissor(vx,vy,vw,vh);
+    renderer.render(scene,droneCam);
+    renderer.setScissorTest(false);
+    if(!pipShown){ pipShown=true;
+      const l=document.getElementById('pipLabel');
+      l.style.display='block'; l.style.bottom=(vy+vh+4)+'px'; }
+  }else if(pipShown){ pipShown=false;
+    document.getElementById('pipLabel').style.display='none'; }
 }
 
 function toggleInfo(){
@@ -1707,5 +1788,161 @@ if(window.matchMedia('(max-width:760px)').matches){ toggleInfo(); }
 applyScenario();
 requestAnimationFrame(loop);
 </script>
+<script>
+"use strict";
+/* ---------- 送信機の操作モード図解 ----------
+   ガイダンス5章の設定（モード1/2・ばね中立・スロットル保持・ラチェット）を再現。
+   ばね戻りは臨界減衰スプリング（overshootなし・離した瞬間の速度を引き継ぐ）。 */
+(function(){
+  const TX={
+    multi:{
+      L:{v:{fn:'スロットル',sub:'上昇／下降'}, h:{fn:'ラダー',sub:'旋回（ヨー）'}},
+      R:{v:{fn:'エレベーター',sub:'前後移動'}, h:{fn:'エルロン',sub:'左右移動'}},
+      note:'<b>モード2</b>：左スティック縦＝スロットル・横＝ラダー、右スティック縦＝エレベーター・横＝エルロン。全スティックとも手を離すと<b>ばねで中央に戻り</b>、段階的でなく<b>無段階に滑らかに</b>動く設定。ラチェットの長さは普通。'},
+    heli:{
+      L:{v:{fn:'エレベーター',sub:'前後移動'}, h:{fn:'ラダー',sub:'旋回（ヨー）'}},
+      R:{v:{fn:'スロットル',sub:'上昇／下降',hold:true}, h:{fn:'エルロン',sub:'左右移動'}},
+      short:true,
+      note:'<b>モード1</b>：左スティック縦＝エレベーター・横＝ラダー、右スティック縦＝スロットル・横＝エルロン。<b>スロットル（右・縦）は手を離しても位置が保持</b>され、他はばねで中央へ。スティックの長さは<b>短め</b>とし、無風で適切な前進飛行ができるよう<b>トリムを調整</b>。'},
+    plane:{
+      L:{v:{fn:'エレベーター',sub:'前後移動'}, h:{fn:'ラダー',sub:'旋回（ヨー）'}},
+      R:{v:{fn:'スロットル',sub:'上昇／下降',hold:true,ratchet:true}, h:{fn:'エルロン',sub:'左右移動'}},
+      note:'<b>モード1</b>：割当てはヘリと同じ。<b>スロットル（右・縦）は保持式</b>で、<b>ラチェット式に段階的へカチカチと動く</b>設定が望ましいとされます（図解では7段階で再現）。他の軸はばね中立・無段階。ラチェットの長さは普通。トリム調整を行う。'}
+  };
+  const DETENTS=7;
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const body=document.getElementById('txBody');
+  let cur='multi';
+
+  function mkStick(sideKey, sideName){
+    const wrap=document.createElement('div'); wrap.className='txstick';
+    wrap.innerHTML=
+      '<span></span><div class="txlab" data-l="vt"></div><span></span>'+
+      '<div class="txlab" data-l="hl"></div>'+
+      '<div class="txpad"><div class="cx"></div><div class="cy"></div><div class="dets"></div><div class="txknob"></div></div>'+
+      '<div class="txlab" data-l="hr"></div>'+
+      '<span></span><div class="txlab" data-l="vb"></div><span></span>'+
+      '<div class="side">'+sideName+'</div><div class="val"></div>';
+    body.appendChild(wrap);
+
+    const pad=wrap.querySelector('.txpad'), knob=wrap.querySelector('.txknob'),
+          dets=wrap.querySelector('.dets'), val=wrap.querySelector('.val');
+    const S={x:0, y:0, vx:0, vy:0, cfg:null, dragging:false, raf:0, hist:[]};
+
+    function lim(){ return (pad.clientWidth-46)/2; }   // ノブ可動半径(px)
+    function draw(){
+      const L=lim();
+      knob.style.transform='translate(-50%,-50%) translate('+(S.x*L)+'px,'+(-S.y*L)+'px)';
+      const c=S.cfg;
+      val.textContent=c.v.fn+' '+(c.v.hold?Math.round((S.y+1)*50)+'%':Math.round(S.y*100))+'｜'+c.h.fn+' '+Math.round(S.x*100);
+    }
+    function quantY(y){ const st=2/(DETENTS-1); return Math.max(-1,Math.min(1,Math.round(y/st)*st)); }
+    function setLabels(c){
+      wrap.querySelector('[data-l=vt]').innerHTML=c.v.fn+(c.v.hold?'（保持式）':'')+'<small>'+c.v.sub+'</small>';
+      wrap.querySelector('[data-l=vb]').innerHTML='<small>'+(c.v.hold?'離しても保持'+(c.v.ratchet?'・ラチェット式':'') :'ばねで中央へ')+'</small>';
+      wrap.querySelector('[data-l=hl]').innerHTML=c.h.fn+'<small>'+c.h.sub+'</small>';
+      wrap.querySelector('[data-l=hr]').innerHTML='<small>ばねで中央へ</small>';
+      wrap.querySelector('[data-l=vt]').classList.toggle('hold',!!c.v.hold);
+      // ラチェットの目盛り
+      dets.innerHTML='';
+      if(c.v.ratchet){
+        for(let i=0;i<DETENTS;i++){
+          const d=document.createElement('div'); d.className='det';
+          d.style.top=(8+ (i/(DETENTS-1))*84)+'%';
+          dets.appendChild(d);
+        }
+      }
+    }
+    function apply(craft){
+      S.cfg=TX[craft][sideKey];
+      pad.classList.toggle('short', !!TX[craft].short);
+      // 機種切替時：保持軸も含めて中央へリセット
+      S.x=0; S.y=0; S.vx=0; S.vy=0;
+      setLabels(S.cfg); draw();
+    }
+
+    // --- ドラッグ（1:1・掴んだ位置のオフセット尊重・履歴で速度算出） ---
+    let grab=null;
+    pad.addEventListener('pointerdown',e=>{
+      try{ pad.setPointerCapture(e.pointerId); }catch(err){}
+      cancelAnimationFrame(S.raf);
+      S.dragging=true; S.hist=[];
+      const r=pad.getBoundingClientRect(), L=lim();
+      const px=(e.clientX-(r.left+r.width/2))/L, py=-(e.clientY-(r.top+r.height/2))/L;
+      // ノブの上を掴んだらオフセット維持、外なら即その位置へ（応答はpointer-down）
+      const dx=px-S.x, dy=py-S.y;
+      grab=(Math.hypot(dx,dy)<0.35)?{dx,dy}:{dx:0,dy:0};
+      move(e);
+    });
+    function move(e){
+      if(!S.dragging) return;
+      const r=pad.getBoundingClientRect(), L=lim();
+      let px=(e.clientX-(r.left+r.width/2))/L - grab.dx;
+      let py=-(e.clientY-(r.top+r.height/2))/L - grab.dy;
+      px=Math.max(-1,Math.min(1,px)); py=Math.max(-1,Math.min(1,py));
+      if(S.cfg.v.ratchet) py=quantY(py);
+      const now=performance.now();
+      S.hist.push({t:now,x:px,y:py});
+      while(S.hist.length>2 && now-S.hist[0].t>90) S.hist.shift();
+      S.x=px; S.y=py; draw();
+    }
+    pad.addEventListener('pointermove',move);
+    function release(){
+      if(!S.dragging) return;
+      S.dragging=false;
+      // 速度ハンドオフ（直近履歴から）
+      let vx=0, vy=0;
+      if(S.hist.length>1){
+        const a=S.hist[0], b=S.hist[S.hist.length-1], dt=(b.t-a.t)/1000;
+        if(dt>0.005){ vx=(b.x-a.x)/dt; vy=(b.y-a.y)/dt; }
+      }
+      const tx=0, ty=S.cfg.v.hold ? (S.cfg.v.ratchet?quantY(S.y):S.y) : 0;
+      if(reduced){ S.x=tx; S.y=ty; draw(); return; }
+      S.vx=vx; S.vy=vy;
+      const w0=2*Math.PI/0.30;                 // response 0.30s
+      let prev=performance.now();
+      cancelAnimationFrame(S.raf);
+      (function step(){
+        const now=performance.now();
+        const dt=Math.min(0.032,(now-prev)/1000); prev=now;
+        // 臨界減衰ばね（overshootなし）
+        S.vx+=(-w0*w0*(S.x-tx)-2*w0*S.vx)*dt; S.x+=S.vx*dt;
+        S.vy+=(-w0*w0*(S.y-ty)-2*w0*S.vy)*dt; S.y+=S.vy*dt;
+        draw();
+        if(Math.abs(S.x-tx)>0.002||Math.abs(S.y-ty)>0.002||Math.abs(S.vx)>0.02||Math.abs(S.vy)>0.02){
+          S.raf=requestAnimationFrame(step);
+        }else{ S.x=tx; S.y=ty; draw(); }
+      })();
+    }
+    pad.addEventListener('pointerup',release);
+    pad.addEventListener('pointercancel',release);
+    return {apply};
+  }
+
+  const L=mkStick('L','左スティック'), R=mkStick('R','右スティック');
+  function setCraft(c){
+    cur=c;
+    document.querySelectorAll('#txTabs button').forEach(b=>
+      b.classList.toggle('on', b.dataset.tx===c));
+    L.apply(c); R.apply(c);
+    document.getElementById('txNote').innerHTML=TX[c].note;
+  }
+  document.querySelectorAll('#txTabs button').forEach(b=>
+    b.addEventListener('click',()=>setCraft(b.dataset.tx)));
+  setCraft('multi');
+})();
+</script>
+<script>
+window.PLAYER_CFG={
+  id:'renewal',
+  state:()=>curType+'-'+curClass,
+  apply:h=>{const m=h.match(/^(multi|heli|plane)-([12])$/); if(m){ curClass=+m[2]; setType(m[1]); setClass(+m[2]); }},
+  scen:()=>curScenario(),
+  name:()=>curScenario().name,
+  ticks:()=>{const sc=curScenario(); const tt=totalDur(sc);
+    return sc.steps.map((s,i)=>stepStartTime(sc,i)/tt); }
+};
+</script>
+<script src="vendor/player-extras.js"></script>
 </body>
 </html>

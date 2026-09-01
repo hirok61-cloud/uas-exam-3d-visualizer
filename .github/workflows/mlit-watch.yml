@@ -1,0 +1,59 @@
+# 原文PDF（MLIT）の改正監視
+# 毎朝6時(JST)に data/mlit-hashes.json のURLを取得してハッシュ照合し、
+# 変わっていたらIssueを立てて知らせる（同題の未クローズIssueがあれば重複させない）。
+# 改正を取り込んだら、data/mlit-hashes.json のsha256を更新してIssueを閉じる。
+name: MLIT資料の更新監視
+
+on:
+  schedule:
+    - cron: "0 21 * * *"   # 21:00 UTC = 6:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ハッシュ照合
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=""
+          while IFS=$'\t' read -r name url expect; do
+            actual=$(curl -sSL --max-time 60 "$url" | sha256sum | cut -d' ' -f1)
+            if [ "$actual" != "$expect" ]; then
+              echo "CHANGED: $name"
+              changed="${changed}- **${name}**\n  ${url}\n  記録値: \`${expect}\`\n  現在値: \`${actual}\`\n"
+            else
+              echo "ok: $name"
+            fi
+          done < <(python3 -c "
+          import json
+          for d in json.load(open('data/mlit-hashes.json')):
+              print(f\"{d['name']}\t{d['url']}\t{d['sha256']}\")
+          ")
+          {
+            echo "changed<<EOF"
+            printf '%b' "$changed"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 変更があればIssueを作成
+        if: steps.check.outputs.changed != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          title="原文PDFが更新された可能性があります（要確認）"
+          if gh issue list --state open --search "in:title $title" --json number --jq 'length' | grep -qv '^0$'; then
+            echo "既に未クローズのIssueがあるためスキップ"
+            exit 0
+          fi
+          body=$(printf '国土交通省サイト上の原文PDFのハッシュが変わりました。改正の有無を確認し、必要ならビジュアライザーへ反映のうえ data/mlit-hashes.json のsha256を更新してください。\n\n%b\n（このIssueは .github/workflows/mlit-watch.yml が自動作成）' "${{ steps.check.outputs.changed }}")
+          gh issue create --title "$title" --body "$body"
