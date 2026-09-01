@@ -10,5 +10,41 @@
     "url": "https://www.mlit.go.jp/koku/content/001868641.pdf",
     "sha256": "d468ca86cbea9ef5280b3d2f09b55de20d182b56f29d8a9fc4a36cbdd843e42b",
     "checked": "2026-09-02"
+  },
+  {
+    "name": "一等無人航空機操縦士実地試験実施細則 回転翼航空機（マルチローター）",
+    "url": "https://www.mlit.go.jp/koku/content/001971374.pdf",
+    "sha256": "3e6a1df7521a520b09ee5121a02ec49846afaa799292e7509e8b10703a3c1f4e",
+    "checked": "2026-09-02"
+  },
+  {
+    "name": "二等無人航空機操縦士実地試験実施細則 回転翼航空機（マルチローター）",
+    "url": "https://www.mlit.go.jp/koku/content/001971375.pdf",
+    "sha256": "ad7a3f9b4072303cb11d13fbf280eae9af9ff0fd775e777d5ae4071ddba33c86",
+    "checked": "2026-09-02"
+  },
+  {
+    "name": "一等無人航空機操縦士実地試験実施細則 回転翼航空機（ヘリコプター）",
+    "url": "https://www.mlit.go.jp/koku/content/001971376.pdf",
+    "sha256": "6fb4d09e7154baa3dbe14836663db84c832b1ff09e0180499d35a857ef0fb7a0",
+    "checked": "2026-09-02"
+  },
+  {
+    "name": "二等無人航空機操縦士実地試験実施細則 回転翼航空機（ヘリコプター）",
+    "url": "https://www.mlit.go.jp/koku/content/001971377.pdf",
+    "sha256": "ecb9dffd19b96ae318bd763f305eb42322f4dd0d403df3e56c2691d9e0ed6b89",
+    "checked": "2026-09-02"
+  },
+  {
+    "name": "一等無人航空機操縦士実地試験実施細則 飛行機",
+    "url": "https://www.mlit.go.jp/koku/content/001971378.pdf",
+    "sha256": "466c0f7aa4452f538a05ead43bf074215eeb7fdd021d39365009ca294993cd64",
+    "checked": "2026-09-02"
+  },
+  {
+    "name": "二等無人航空機操縦士実地試験実施細則 飛行機",
+    "url": "https://www.mlit.go.jp/koku/content/001971379.pdf",
+    "sha256": "57400c7a7b63b355cfca5220c3f56a175b2740a99b54d981bb4f90018c3cfc92",
+    "checked": "2026-09-02"
   }
 ]

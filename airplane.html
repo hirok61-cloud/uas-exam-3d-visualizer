@@ -14,7 +14,7 @@
 <meta property="og:image" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/assets/ogp.png">
 <meta property="og:site_name" content="無人航空機 3Dフライトビジュアライザー">
 <meta name="twitter:card" content="summary_large_image">
-<script src="vendor/three.min.js?v=r128"></script>
+<link rel="preload" as="script" href="vendor/three.min.js?v=r128">
 <style>
   :root{
     --navy:#17335f; --navy-d:#0f2547; --teal:#0e6e63; --teal-d:#0a5049;
@@ -33,6 +33,9 @@
   header.doc .kicker{font-size:11px; letter-spacing:.18em; opacity:.75; margin-bottom:6px;}
   header.doc h1{font-size:21px; font-weight:700; letter-spacing:.02em;}
   header.doc .sub{font-size:12.5px; opacity:.85; margin-top:6px;}
+  header.doc .srcs{font-size:11.5px; margin-top:9px; opacity:.92;}
+  header.doc .srcs a{color:#ffd76a; text-decoration:none; border-bottom:1px solid rgba(255,215,106,.4);}
+  header.doc .srcs a:hover{border-bottom-color:#ffd76a;}
   .wrap{max-width:1180px; margin:0 auto; padding:0 16px 60px;}
 
   /* ------- control bar ------- */
@@ -153,6 +156,7 @@
   <div class="kicker">無人航空機操縦者技能証明　実地試験実施細則（飛行機）｜令和7年12月5日改正（国空無機第298768号）反映</div>
   <h1>一等・二等 無人航空機操縦士 実地試験〔飛行機〕　3Dフライトビジュアライザー</h1>
   <div class="sub">飛行機（固定翼）の実技試験（基本＝手動操縦の周回・８の字／限定変更＝自動操縦の周回）の飛行経路・高度・バンク・緊急着陸を3Dアニメーションで再現。飛行機の区画は受験者位置からの<b>開き角度で定められた区画線</b>（内側減点±40°・外側減点±65°・不合格±70°）で判定され、飛行フェーズに応じて明滅します。ドラッグで視点回転、ホイール／ピンチで拡大縮小。</div>
+  <div class="srcs">原文PDF：<a href="https://www.mlit.go.jp/koku/content/001971378.pdf" target="_blank" rel="noopener">一等 実地試験実施細則（飛行機）</a>｜<a href="https://www.mlit.go.jp/koku/content/001971379.pdf" target="_blank" rel="noopener">二等 実地試験実施細則（飛行機）</a>｜<a href="https://www.mlit.go.jp/koku/license.html" target="_blank" rel="noopener">通達・試験関係一覧</a></div>
 </header>
 <nav class="pagenav">
   <a href="index.html">機種一覧</a>
@@ -577,6 +581,7 @@ function samplePose(sc, time){
   }
 }
 </script>
+<script src="vendor/three.min.js?v=r128"></script>
 <script id="engine">
 "use strict";
 // ---------- Three.js セットアップ ----------
