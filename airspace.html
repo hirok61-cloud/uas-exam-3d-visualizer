@@ -14,7 +14,7 @@
 <meta property="og:image" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/assets/ogp.png">
 <meta property="og:site_name" content="無人航空機 3Dフライトビジュアライザー">
 <meta name="twitter:card" content="summary_large_image">
-<script src="vendor/three.min.js?v=r128"></script>
+<link rel="preload" as="script" href="vendor/three.min.js?v=r128">
 <style>
   :root{
     --navy:#17335f; --navy-d:#0f2547; --teal:#0e6e63; --teal-d:#0a5049;
@@ -33,6 +33,9 @@
   header.doc .kicker{font-size:11px; letter-spacing:.18em; opacity:.75; margin-bottom:6px;}
   header.doc h1{font-size:21px; font-weight:700; letter-spacing:.02em;}
   header.doc .sub{font-size:12.5px; opacity:.85; margin-top:6px;}
+  header.doc .srcs{font-size:11.5px; margin-top:9px; opacity:.92;}
+  header.doc .srcs a{color:#ffd76a; text-decoration:none; border-bottom:1px solid rgba(255,215,106,.4);}
+  header.doc .srcs a:hover{border-bottom-color:#ffd76a;}
   .pagenav{background:var(--navy-d); padding:0 28px; display:flex; gap:2px; flex-wrap:wrap;}
   .pagenav a{
     color:#b9c7dd; text-decoration:none; font-size:12.5px; font-weight:700;
@@ -170,6 +173,7 @@
   <div class="kicker">無人航空機操縦者技能証明　実地試験実施細則（飛行機）／修了審査空域　一等・二等 共通</div>
   <h1>飛行機 空域計算ツール ― 施設飛行空域（修了審査空域）の3D可視化</h1>
   <div class="sub">機体のファクターを入力すると、立入管理措置を講ずるべき空域の大きさと必要着陸滑走路長を計算し、3Dと縮尺図で表示します。</div>
+  <div class="srcs">原文PDF：<a href="https://www.mlit.go.jp/koku/content/001971378.pdf" target="_blank" rel="noopener">一等 実地試験実施細則（飛行機）</a>｜<a href="https://www.mlit.go.jp/koku/content/001971379.pdf" target="_blank" rel="noopener">二等 実地試験実施細則（飛行機）</a>｜<a href="https://www.mlit.go.jp/koku/license.html" target="_blank" rel="noopener">通達・試験関係一覧</a></div>
 </header>
 <nav class="pagenav">
   <a href="index.html">機種一覧</a>
@@ -421,6 +425,7 @@
 
 </div>
 
+<script src="vendor/three.min.js?v=r128"></script>
 <script>
 "use strict";
 const g = 9.8;

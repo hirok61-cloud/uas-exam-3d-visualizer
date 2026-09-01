@@ -1,0 +1,7 @@
+# Cloudflare Workers(assets)/Pages 共通のキャッシュ設定。
+# vendor/ は ?v= のバージョンクエリで更新を切り替えるため長期キャッシュにできる。
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*
+  Cache-Control: public, max-age=604800
