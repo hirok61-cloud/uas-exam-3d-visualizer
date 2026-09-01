@@ -9,3 +9,4 @@ scripts/
 data/
 .DS_Store
 README.md
+vercel.json
