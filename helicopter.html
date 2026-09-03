@@ -167,6 +167,7 @@
   <a href="multirotor.html">マルチローター</a>
   <a href="helicopter.html" class="on">ヘリコプター</a>
   <a href="renewal.html">更新講習</a>
+  <a href="compare.html">一等・二等比較</a>
 </nav>
 
 <div class="wrap">
@@ -1249,6 +1250,16 @@ window.PLAYER_CFG={
   ticks:()=>[]
 };
 </script>
-<script src="vendor/player-extras.js?v=2"></script>
+<script src="vendor/player-extras.js?v=3"></script>
+<script>
+window.FX_CFG={
+  pos:()=>drone.position,
+  seg:()=>samplePose(SCENARIOS[curClass][curScIdx],t).seg,
+  scale:()=>(SCENARIOS[curClass][curScIdx].course==='highalt'?2.4:1.8),
+  wind:()=>{const sc=SCENARIOS[curClass][curScIdx]; if(sc.night) return null; return [-(sc.stand*0.6+4), sc.stand*0.7, 1.8, Math.PI/4];},
+  skyR:1100
+};
+</script>
+<script src="vendor/fx.js?v=1"></script>
 </body>
 </html>

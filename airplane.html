@@ -70,6 +70,13 @@
   .playbar select{font-family:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:#fff;}
   .playbar .spacer{flex:1;}
   .hint{font-size:11.5px; color:#6b7583;}
+  .acond{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; padding:10px 14px; border-top:1px dashed var(--line); font-size:12.5px; background:#fff;}
+  .acond .ttl{width:100%; font-weight:700; color:#5a6472; font-size:12px;}
+  .acond label{display:inline-flex; align-items:center; gap:5px;}
+  .acond input{width:66px; font:inherit; padding:5px 6px; border:1px solid var(--line); border-radius:6px;}
+  .acond button{font-family:inherit; font-size:12.5px; padding:6px 12px; border-radius:6px; cursor:pointer; border:1px solid var(--line); background:#fff;}
+  .acond .out{width:100%; color:#2f6fb0;}
+  .acond .kmh{color:#8a94a2; font-size:11px;}
 
   /* ------- 3D stage ------- */
   #stageBox{position:relative; margin-top:14px; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#0b1626;}
@@ -165,6 +172,7 @@
   <a href="multirotor.html">マルチローター</a>
   <a href="helicopter.html">ヘリコプター</a>
   <a href="renewal.html">更新講習</a>
+  <a href="compare.html">一等・二等比較</a>
 </nav>
 
 <div class="wrap">
@@ -176,6 +184,16 @@
       <button id="tab2" onclick="setClass(2)">二等（合格：70点以上）</button>
     </div>
     <div class="scenarios" id="scButtons"></div>
+    <div class="acond" id="acond">
+      <span class="ttl">機体条件（空域計算ツールと同じ式で経路・区画を実寸化。所要時間＝距離÷巡航速度、長辺の直線＝15秒）</span>
+      <label>巡航速度 Vc <input type="number" id="pVc" min="5" max="60" step="0.5"> m/s <span class="kmh" id="pVcK"></span></label>
+      <label>バンク角 θ <input type="number" id="pTh" min="10" max="70" step="1"> °</label>
+      <label>短辺の直線 t <input type="number" id="pT" min="0" max="5" step="0.5"> 秒</label>
+      <button id="pLoad" title="空域計算ツールで計算した条件を読み込みます">空域計算ツールの値を読込</button>
+      <button id="pReset">既定に戻す（Vc17・θ30）</button>
+      <a class="hint" href="airspace.html">空域計算ツールを開く →</a>
+      <span class="hint out" id="pOut"></span>
+    </div>
     <div class="playbar">
       <button class="primary" id="btnPlay" onclick="togglePlay()">▶ 再生</button>
       <button onclick="resetAnim()">⟲ 最初から</button>
@@ -330,13 +348,54 @@
 // 座標系: x=右, z=手前(受験者側)+, y=高さ　／　受験者=原点付近, 滑走路 z=-30
 const PI = Math.PI;
 const RWY = {x0:-45, x1:45, z:-30, w:16};
+const G9 = 9.8;
+
+/* ---------- 機体条件 → 経路ジオメトリ ----------
+   空域計算ツール(airspace.html)と同じ式で経路・区画を実寸化する。
+     旋回半径 r = Vc²/(g·tanθ)、長辺の直線 = 15秒×Vc、短辺の直線 = t×Vc、
+     不合格区画までの余裕 B = ((Vc+15)²−Vc²)/(g·tanθ)、施設飛行空域 = 不合格区画 + 30m
+   既定値は空域計算ツールの「細則概要図の想定値」と同じ（Vc=17m/s, θ=30°, t=0）。
+   URLクエリ ?vc=&th=&t= → localStorage(uasAirplaneParams) → 既定値 の順で採用する。
+   所要時間は 距離÷巡航速度 で決まる（長辺の直線＝ちょうど15秒）。 */
+const PARAM_DEF = {vc:17, th:30, t:0};
+function readParams(){
+  const p={...PARAM_DEF};
+  try{
+    const q=(typeof location!=='undefined')?new URLSearchParams(location.search):null;
+    const ls=(typeof localStorage!=='undefined')?JSON.parse(localStorage.getItem('uasAirplaneParams')||'null'):null;
+    const from=(q&&(q.has('vc')||q.has('th')||q.has('t')))?{vc:q.get('vc'),th:q.get('th'),t:q.get('t')}:(ls||{});
+    for(const k of ['vc','th','t']){ const v=parseFloat(from[k]); if(Number.isFinite(v)) p[k]=v; }
+  }catch(e){}
+  p.vc=Math.min(60,Math.max(5,p.vc)); p.th=Math.min(70,Math.max(10,p.th)); p.t=Math.min(5,Math.max(0,p.t));
+  return p;
+}
+function makeGeo(p){
+  const tanT=Math.tan(p.th*PI/180);
+  const r=p.vc*p.vc/(G9*tanT);
+  const B=((p.vc+15)**2-p.vc*p.vc)/(G9*tanT);
+  const Llong=15*p.vc, Lshort=p.t*p.vc, Lx=Llong/2;
+  const zN=-80;                       // 近側の長辺（滑走路の50m奥）
+  const zc=zN-r, zc2=zc-Lshort;       // 旋回中心のz（近側／遠側）
+  const zF=zc2-r;                     // 遠側の長辺
+  const innerW=Llong+2*r, innerH=Lshort+2*r;
+  const failW=innerW+2*B, failH=innerH+2*B;
+  return {vc:p.vc, th:p.th, t:p.t, r, B, H:30, Llong, Lshort, Lx, zN, zF, zc, zc2, zMid:(zN+zF)/2,
+    innerW, innerH, failW, failH, W:failW+60, D:failH+60,
+    ext:Math.max(Lx+r+B+30, -zF+B+30)};
+}
+let PARAMS=readParams();
+let GEO=makeGeo(PARAMS);
+const vLen=(a,b)=>Math.hypot(b[0]-a[0], b[1]-a[1], (b[2]||0)-(a[2]||0));
+const durL=(a,b)=>Math.max(0.5, vLen(a,b)/GEO.vc);
+const durA=(r,a0,a1)=>Math.max(0.5, Math.abs(a1-a0)*r/GEO.vc);
 
 // ---------- セグメント・ジェネレータ ----------
 // t:'wait'(地上停止) 'roll'(滑走 mode:'acc'|'dec') 'line'(直線飛行) 'arc'(旋回)
 // z:{f:不合格区画線, d:減点区画線, r:滑走路判定}　emg:緊急事態
+// 座標はすべて GEO（機体条件）から導く。
 
 function takeoffSegs(alt, opts={}){
-  const s=[];
+  const {Lx,zF}=GEO; const s=[];
   if(opts.auto){
     s.push({t:'wait', p:[-45,-30], dur:4, z:{}, label:'飛行経路の設定（制限20分）→ 試験員が設定を確認 → 関係者へ飛行経路・手順を説明'});
     s.push({t:'roll', a:[-45,-30], b:[35,-30], dur:3.2, mode:'acc', z:{r:1}, label:'自動操縦（又は受験者補助員の手動）で向かい風方向へ離陸滑走'});
@@ -344,29 +403,66 @@ function takeoffSegs(alt, opts={}){
     s.push({t:'wait', p:[-45,-30], dur:3, z:{}, label:'風向風速を計測 → 機体を滑走路の所要位置へ → 離陸を試験員に通知（姿勢制御'+(opts.on?'ON':'OFF')+'）'});
     s.push({t:'roll', a:[-45,-30], b:[35,-30], dur:3.2, mode:'acc', z:{r:1}, label:'向かい風方向へ離陸滑走（区画線はまだ無効）'});
   }
-  s.push({t:'line', a:[35,-30,0], b:[105,-30,alt*0.3], dur:2.6, z:{}, label:'離陸 → 上昇'});
-  s.push({t:'arc', c:[105,-115], r:85, a0:PI/2, a1:-PI/2, h0:alt*0.3, h1:alt, dur:7.5, z:{},
+  const x1=Math.max(Lx,60);
+  s.push({t:'line', a:[35,-30,0], b:[x1,-30,alt*0.3], dur:durL([35,-30,0],[x1,-30,alt*0.3])*1.5, z:{}, label:'離陸 → 上昇'});
+  const rc=(-30-zF)/2;   // 滑走路の延長線からA地点（遠側長辺の右端）へ上昇旋回
+  s.push({t:'arc', c:[x1,-30-rc], r:rc, a0:PI/2, a1:-PI/2, h0:alt*0.3, h1:alt, dur:durA(rc,PI/2,-PI/2), z:{},
     label:'上昇旋回で周回飛行開始地点（A地点）へ（区画線無効）'});
-  return s; // 終端 (105,-200) 機首-x方向
+  if(x1>Lx+0.5) s.push({t:'line', a:[x1,zF,alt], b:[Lx,zF,alt], dur:durL([x1,zF],[Lx,zF]), z:{}, label:'A地点へ'});
+  return s; // 終端 (Lx,zF) 機首-x方向
 }
-
+// 左端の旋回（fromFar=true: 遠側→近側＝反時計回りの周回／false: 近側→遠側＝逆向き）。短辺の直線があれば挟む
+function leftTurn(h0,h1,z,label,fromFar=true){
+  const {Lx,r,zc,zc2,Lshort}=GEO; const s=[]; const hm=(h0+h1)/2;
+  if(fromFar){
+    s.push({t:'arc', c:[-Lx,zc2], r, a0:-PI/2, a1:-PI, h0, h1:hm, dur:durA(r,-PI/2,-PI), z, label});
+    if(Lshort>0.5) s.push({t:'line', a:[-Lx-r,zc2,hm], b:[-Lx-r,zc,hm], dur:durL([-Lx-r,zc2],[-Lx-r,zc]), z, label});
+    s.push({t:'arc', c:[-Lx,zc], r, a0:-PI, a1:-3*PI/2, h0:hm, h1, dur:durA(r,-PI,-3*PI/2), z, label});
+  }else{
+    s.push({t:'arc', c:[-Lx,zc], r, a0:PI/2, a1:PI, h0, h1:hm, dur:durA(r,PI/2,PI), z, label});
+    if(Lshort>0.5) s.push({t:'line', a:[-Lx-r,zc,hm], b:[-Lx-r,zc2,hm], dur:durL([-Lx-r,zc],[-Lx-r,zc2]), z, label});
+    s.push({t:'arc', c:[-Lx,zc2], r, a0:PI, a1:3*PI/2, h0:hm, h1, dur:durA(r,PI,3*PI/2), z, label});
+  }
+  return s;
+}
+// 右端の旋回（fromNear=true: 近側→遠側＝反時計回りの周回／false: 遠側→近側＝逆向き）
+function rightTurn(h0,h1,z,label,fromNear=true){
+  const {Lx,r,zc,zc2,Lshort}=GEO; const s=[]; const hm=(h0+h1)/2;
+  if(fromNear){
+    s.push({t:'arc', c:[Lx,zc], r, a0:PI/2, a1:0, h0, h1:hm, dur:durA(r,PI/2,0), z, label});
+    if(Lshort>0.5) s.push({t:'line', a:[Lx+r,zc,hm], b:[Lx+r,zc2,hm], dur:durL([Lx+r,zc],[Lx+r,zc2]), z, label});
+    s.push({t:'arc', c:[Lx,zc2], r, a0:0, a1:-PI/2, h0:hm, h1, dur:durA(r,0,-PI/2), z, label});
+  }else{
+    s.push({t:'arc', c:[Lx,zc2], r, a0:-PI/2, a1:0, h0, h1:hm, dur:durA(r,-PI/2,0), z, label});
+    if(Lshort>0.5) s.push({t:'line', a:[Lx+r,zc2,hm], b:[Lx+r,zc,hm], dur:durL([Lx+r,zc2],[Lx+r,zc]), z, label});
+    s.push({t:'arc', c:[Lx,zc], r, a0:0, a1:PI/2, h0:hm, h1, dur:durA(r,0,PI/2), z, label});
+  }
+  return s;
+}
 // 周回1周（反時計回り・図と同方向）
 function lapSegs(h, z, lbl, startX){
-  const sx = (startX===undefined)?105:startX;
+  const {Lx,zN,zF}=GEO; const sx=(startX===undefined)?Lx:startX;
   return [
-    {t:'line', a:[sx,-200,h], b:[-105,-200,h], dur:5.5*(sx+105)/210, z, label:lbl[0]},
-    {t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:h, h1:h, dur:4.5, z, label:lbl[1]},
-    {t:'line', a:[-105,-80,h], b:[105,-80,h], dur:5.5, z, label:lbl[2]},
-    {t:'arc', c:[105,-140], r:60, a0:PI/2, a1:-PI/2, h0:h, h1:h, dur:4.5, z, label:lbl[3]}
+    {t:'line', a:[sx,zF,h], b:[-Lx,zF,h], dur:durL([sx,zF],[-Lx,zF]), z, label:lbl[0]},
+    ...leftTurn(h,h,z,lbl[1]),
+    {t:'line', a:[-Lx,zN,h], b:[Lx,zN,h], dur:durL([-Lx,zN],[Lx,zN]), z, label:lbl[2]},
+    ...rightTurn(h,h,z,lbl[3])
   ];
 }
-
-// 通常着陸（B地点通知後、向かい風方向＝離陸と同方向へ）
+// B地点到達（左端旋回の前半：遠側→左端）
+function bArrive(h, z, label){
+  const {Lx,r,zc,zc2,Lshort}=GEO; const s=[];
+  s.push({t:'arc', c:[-Lx,zc2], r, a0:-PI/2, a1:-PI, h0:h, h1:h, dur:durA(r,-PI/2,-PI), z, label});
+  if(Lshort>0.5) s.push({t:'line', a:[-Lx-r,zc2,h], b:[-Lx-r,zc,h], dur:durL([-Lx-r,zc2],[-Lx-r,zc]), z, label});
+  return s;
+}
+// 通常着陸（B地点通知後、向かい風方向＝離陸と同方向へ）：左端旋回の後半で降下し最終進入
 function landSegs(hIn){
+  const {Lx,r,zN,zc}=GEO;
   return [
-    {t:'arc', c:[-105,-140], r:60, a0:-PI, a1:-3*PI/2, h0:hIn, h1:55, dur:2.4, z:{},
+    {t:'arc', c:[-Lx,zc], r, a0:-PI, a1:-3*PI/2, h0:hIn, h1:hIn*0.7, dur:durA(r,-PI,-3*PI/2), z:{},
       label:'通知後は区画線無効 → 向かい風方向へ着陸進入（進入方向を変える場合は経路任意）'},
-    {t:'line', a:[-105,-80,55], b:[-48,-34,10], dur:2.8, z:{r:1}, label:'最終進入（滑走路逸脱判定が有効に）'},
+    {t:'line', a:[-Lx,zN,hIn*0.7], b:[-48,-34,10], dur:durL([-Lx,zN,hIn*0.7],[-48,-34,10]), z:{r:1}, label:'最終進入（滑走路逸脱判定が有効に）'},
     {t:'line', a:[-48,-34,10], b:[-15,-30,0], dur:1.6, z:{r:1}, label:'接地（一部でも降着装置が滑走路を逸脱すると不合格）'},
     {t:'roll', a:[-15,-30], b:[38,-30], dur:2.6, mode:'dec', z:{r:1}, label:'滑走路内で減速・停止'},
     {t:'wait', p:[38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'}
@@ -375,47 +471,44 @@ function landSegs(hIn){
 
 // ---------- 基本①周回飛行 ----------
 function basicCircuit(cls){
-  const alt=80, on=(cls===2);
+  const alt=80, on=(cls===2); const {Lx,zF}=GEO;
   const s=takeoffSegs(alt,{on});
-  // 1周目：調整（減点対象外）
   s.push(...lapSegs(alt, {}, [
     'A地点到達を通知 → 1周目：試験員の指示で飛行経路を調整（減点対象外）',
     '1周目：試験員が求める高度（概ね対地70〜100m）に調整中…',
     '1周目：長辺方向は概ね15秒の直線飛行（短辺は直線なし）',
     '試験員の指示で調整終了 → 機体が再びA地点到達 → 通知（ここから採点対象）']));
-  // 採点対象 1周
   s.push(...lapSegs(alt, {f:1,d:1}, [
     '調整した経路と概ね同じ経路で周回飛行（区画線適用中）',
     '旋回は内側（±40°）と外側（±65°）の減点区画線の間で行う',
     '長辺の直線飛行：ふらつき・急激な高度変化は減点',
     '旋回（一定バンク）：不合格区画線（±70°）の外に出ると不合格']));
-  // 2周目 B地点で着陸通知
-  s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{f:1,d:1}, label:'2周目：周回飛行を継続…'});
-  s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-PI, h0:alt, h1:alt, dur:2.4, z:{f:1,d:1},
-    label:'2周目にB地点付近へ到達 → 着陸することを試験員に通知'});
+  s.push({t:'line', a:[Lx,zF,alt], b:[-Lx,zF,alt], dur:durL([Lx,zF],[-Lx,zF]), z:{f:1,d:1}, label:'2周目：周回飛行を継続…'});
+  s.push(...bArrive(alt,{f:1,d:1},'2周目にB地点付近へ到達 → 着陸することを試験員に通知'));
   s.push(...landSegs(alt));
   return s;
 }
 
 // ---------- 8の字（右円=反時計回り・左円=時計回り、中央で接する） ----------
 function eightLap(h, z, lbl){
+  const {r,zc}=GEO;
   return [
-    {t:'arc', c:[60,-140], r:60, a0:PI/2, a1:-PI, h0:h, h1:h, dur:6.8, z, label:lbl[0]},
-    {t:'arc', c:[-60,-140], r:60, a0:0, a1:2*PI, h0:h, h1:h, dur:9, z, label:lbl[1]},
-    {t:'arc', c:[60,-140], r:60, a0:-PI, a1:-3*PI/2, h0:h, h1:h, dur:2.2, z, label:lbl[2]}
+    {t:'arc', c:[r,zc], r, a0:PI/2, a1:-PI, h0:h, h1:h, dur:durA(r,PI/2,-PI), z, label:lbl[0]},
+    {t:'arc', c:[-r,zc], r, a0:0, a1:2*PI, h0:h, h1:h, dur:durA(r,0,2*PI), z, label:lbl[1]},
+    {t:'arc', c:[r,zc], r, a0:-PI, a1:-3*PI/2, h0:h, h1:h, dur:durA(r,-PI,-3*PI/2), z, label:lbl[2]}
   ];
 }
 function basicFig8(cls){
-  const alt=80, on=(cls===2);
+  const alt=80, on=(cls===2); const {Lx,r,zN,zF,zc}=GEO;
   const s=takeoffSegs(alt,{on});
   s.push(...lapSegs(alt, {}, [
     'A地点到達を通知 → 1周目：試験員の指示で周回経路・高度を調整（減点対象外）',
     '1周目：高度（概ね対地70〜100m）・経路を調整中…',
     '1周目：調整のための周回飛行',
     '試験員の指示で周回終了 → A地点到達を通知']));
-  s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{}, label:'8の字飛行の開始位置へ…'});
-  s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:alt, h1:alt, dur:4.5, z:{}, label:'8の字飛行の開始位置へ…'});
-  s.push({t:'line', a:[-105,-80,alt], b:[60,-80,alt], dur:4.3, z:{f:1,d:1},
+  s.push({t:'line', a:[Lx,zF,alt], b:[-Lx,zF,alt], dur:durL([Lx,zF],[-Lx,zF]), z:{}, label:'8の字飛行の開始位置へ…'});
+  s.push(...leftTurn(alt,alt,{},'8の字飛行の開始位置へ…'));
+  s.push({t:'line', a:[-Lx,zN,alt], b:[r,zN,alt], dur:durL([-Lx,zN],[r,zN]), z:{f:1,d:1},
     label:'調整した経路と概ね同じ位置・規模で8の字飛行を開始（区画線適用）'});
   s.push(...eightLap(alt, {f:1,d:1}, [
     '8の字 1周目：右円（経路が曲線となるように飛行）',
@@ -426,24 +519,23 @@ function basicFig8(cls){
     '8の字 2周目：左円',
     '8の字 2周目完了'+(cls===1?' → 指示があるまで8の字を継続':'')]));
   if(cls===1){
-    // 継続中に緊急着陸指示（E地点付近）
-    s.push({t:'arc', c:[60,-140], r:60, a0:PI/2, a1:-PI, h0:alt, h1:alt, dur:6.8, z:{f:1,d:1}, label:'8の字飛行を継続中…'});
-    s.push({t:'arc', c:[-60,-140], r:60, a0:0, a1:3*PI/2, h0:alt, h1:alt, dur:6.7, z:{f:1,d:1}, label:'8の字飛行を継続中…（E地点へ）'});
-    s.push({t:'line', a:[-60,-200,alt], b:[25,-170,62], dur:2.4, emg:true, z:{},
+    s.push({t:'arc', c:[r,zc], r, a0:PI/2, a1:-PI, h0:alt, h1:alt, dur:durA(r,PI/2,-PI), z:{f:1,d:1}, label:'8の字飛行を継続中…'});
+    s.push({t:'arc', c:[-r,zc], r, a0:0, a1:3*PI/2, h0:alt, h1:alt, dur:durA(r,0,3*PI/2), z:{f:1,d:1}, label:'8の字飛行を継続中…（E地点へ）'});
+    // 緊急着陸：左円の頂点（E地点）から最短で降下し、逆方向から滑走路へ
+    const zE=zc-r, x1=0.4*r, zs=zE+0.5*r;
+    const r2=(-30-zs)/2, cz=-30-r2;
+    s.push({t:'line', a:[-r,zE,alt], b:[x1,zs,alt*0.78], dur:durL([-r,zE,alt],[x1,zs,alt*0.78]), emg:true, z:{},
       label:'試験員「緊急着陸」の口頭指示！ → 受験者は緊急着陸を通知（以後、区画線無効）'});
-    s.push({t:'arc', c:[25,-100], r:70, a0:-PI/2, a1:PI/2, h0:62, h1:10, dur:5.5, emg:true, z:{},
+    s.push({t:'arc', c:[x1,cz], r:r2, a0:-PI/2, a1:PI/2, h0:alt*0.78, h1:10, dur:durA(r2,-PI/2,PI/2), emg:true, z:{},
       label:'可能な限り最短の飛行経路で降下（進入方向の変更可＝本例は逆方向から進入）'});
-    s.push({t:'line', a:[25,-30,10], b:[-2,-30,0], dur:1.5, emg:true, z:{r:1}, label:'接地（降着装置の滑走路逸脱は不合格）'});
+    s.push({t:'line', a:[x1,-30,10], b:[-2,-30,0], dur:1.5, emg:true, z:{r:1}, label:'接地（降着装置の滑走路逸脱は不合格）'});
     s.push({t:'roll', a:[-2,-30], b:[-38,-30], dur:2.4, mode:'dec', emg:true, z:{r:1}, label:'滑走路内で減速・停止'});
     s.push({t:'wait', p:[-38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'});
   }else{
-    // 二等：A地点へ戻り周回でBへ→着陸
-    s.push({t:'line', a:[60,-80,alt], b:[105,-80,alt], dur:1.3, z:{f:1,d:1}, label:'8の字2周完了 → A地点へ'});
-    s.push({t:'arc', c:[105,-140], r:60, a0:PI/2, a1:-PI/2, h0:alt, h1:alt, dur:4.5, z:{f:1,d:1},
-      label:'A地点到達 → 周回飛行でB地点へ'});
-    s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{f:1,d:1}, label:'周回飛行でB地点へ…'});
-    s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-PI, h0:alt, h1:alt, dur:2.4, z:{f:1,d:1},
-      label:'B地点付近へ到達 → 着陸することを試験員に通知'});
+    s.push({t:'line', a:[r,zN,alt], b:[Lx,zN,alt], dur:durL([r,zN],[Lx,zN]), z:{f:1,d:1}, label:'8の字2周完了 → A地点へ'});
+    s.push(...rightTurn(alt,alt,{f:1,d:1},'A地点到達 → 周回飛行でB地点へ'));
+    s.push({t:'line', a:[Lx,zF,alt], b:[-Lx,zF,alt], dur:durL([Lx,zF],[-Lx,zF]), z:{f:1,d:1}, label:'周回飛行でB地点へ…'});
+    s.push(...bArrive(alt,{f:1,d:1},'B地点付近へ到達 → 着陸することを試験員に通知'));
     s.push(...landSegs(alt));
   }
   return s;
@@ -451,15 +543,17 @@ function basicFig8(cls){
 
 // ---------- 限定変更（自動操縦）周回 ----------
 function autoCircuit(cls, alt){
+  const {Lx,r,zN,zF,zc}=GEO;
   const s=takeoffSegs(alt,{auto:true});
-  s.push({t:'line', a:[105,-200,alt], b:[60,-200,alt], dur:1.4, z:{f:1},
+  const xs=Math.min(Lx,r);
+  s.push({t:'line', a:[Lx,zF,alt], b:[xs,zF,alt], dur:durL([Lx,zF],[xs,zF]), z:{f:1},
     label:'A地点到達を通知 → 受験者は機体が見えない状態に（操縦装置の画面で監視）'});
   const laps=(cls===1)?2:3;
   s.push(...lapSegs(alt, {f:1}, [
     '周回飛行 1周目（自動操縦・不合格区画のみ設定）',
     '周回飛行 1周目：長辺は概ね15秒の直線飛行',
     '周回飛行 1周目：画面上の経路・軌跡・機体位置を監視',
-    '周回飛行 1周目完了'], 60));
+    '周回飛行 1周目完了'], xs));
   for(let i=2;i<=laps;i++){
     s.push(...lapSegs(alt, {f:1}, [
       '周回飛行 '+i+'周目（自動操縦）',
@@ -467,55 +561,52 @@ function autoCircuit(cls, alt){
       '周回飛行 '+i+'周目：合理的な理由のない監視不足は減点',
       '周回飛行 '+i+'周目完了'+(i===laps?' → 次周に入る':'')]));
   }
-  // 上空待機 → 円状旋回
-  s.push({t:'line', a:[105,-200,alt], b:[-105,-200,alt], dur:5.5, z:{f:1}, label:'試験員の口頭指示：「上空待機」 → 速やかに円状の旋回飛行へ'});
-  s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:alt, h1:alt, dur:4.5, z:{f:1}, label:'円状の旋回飛行へ移行…'});
-  s.push({t:'line', a:[-105,-80,alt], b:[0,-80,alt], dur:2.9, z:{f:1}, label:'円状の旋回飛行へ移行…'});
+  // 上空待機 → 円状旋回（円の中心は8の字と同じ列）
+  s.push({t:'line', a:[Lx,zF,alt], b:[-Lx,zF,alt], dur:durL([Lx,zF],[-Lx,zF]), z:{f:1}, label:'試験員の口頭指示：「上空待機」 → 速やかに円状の旋回飛行へ'});
+  s.push(...leftTurn(alt,alt,{f:1},'円状の旋回飛行へ移行…'));
+  s.push({t:'line', a:[-Lx,zN,alt], b:[0,zN,alt], dur:durL([-Lx,zN],[0,zN]), z:{f:1}, label:'円状の旋回飛行へ移行…'});
   if(cls===1){
     const h2=alt-30;
-    // 細則の図のとおり：指示後も円状旋回を継続しながら経路を設定し、
-    // 円の接線方向（円の右端・遠側向き）に離脱 → 右旋回1回で逆向き周回の長辺（遠側・東行き）に会合する
-    s.push({t:'arc', c:[0,-140], r:60, a0:PI/2, a1:-4*PI, h0:alt, h1:alt, dur:18, z:{f:1},
+    s.push({t:'arc', c:[0,zc], r, a0:PI/2, a1:-4*PI, h0:alt, h1:alt, dur:durA(r,PI/2,-4*PI), z:{f:1},
       label:'円状の旋回飛行を2周 → 完了を通知 → 「逆向き・高度を下げた周回」の指示 → 旋回を継続しながら経路を設定'});
-    s.push({t:'line', a:[60,-140,alt], b:[60,-155,alt-3], dur:0.5, z:{f:1},
+    // 円の右端から接線方向（遠側向き）に離脱 → 右へ1/4旋回して逆向き周回の遠側長辺（東行き）に会合
+    const rq=Math.max(8, Math.min(r*0.6, Lx-r));
+    s.push({t:'line', a:[r,zc,alt], b:[r,zF+rq,alt-3], dur:durL([r,zc],[r,zF+rq]), z:{f:1},
       label:'設定完了を通知 → 自動飛行で円状の旋回を離脱'});
-    s.push({t:'arc', c:[105,-155], r:45, a0:PI, a1:3*PI/2, h0:alt-3, h1:alt-10, dur:2.2, z:{f:1},
+    s.push({t:'arc', c:[r+rq,zF+rq], r:rq, a0:PI, a1:3*PI/2, h0:alt-3, h1:alt-10, dur:durA(rq,PI,3*PI/2), z:{f:1},
       label:'降下しながら右旋回 → 逆向きの周回経路（遠側の長辺）に会合'});
+    s.push({t:'line', a:[r+rq,zF,alt-10], b:[Lx,zF,alt-10], dur:durL([r+rq,zF],[Lx,zF]), z:{f:1}, label:'逆向きの周回経路に会合'});
     for(let i=1;i<=2;i++){
       const e0=(i===1)?alt-10:h2, e1=(i===1)?alt-20:h2;  // 1周目は降下しながら
-      s.push({t:'arc', c:[105,-140], r:60, a0:-PI/2, a1:PI/2, h0:e0, h1:e1, dur:4.5, z:{f:1},
-        label:'逆向きの周回飛行 '+i+'周目（元の周回と逆回り・高度を下げた経路）'});
-      s.push({t:'line', a:[105,-80,e1], b:[-105,-80,h2], dur:5.5, z:{f:1},
+      s.push(...rightTurn(e0,e1,{f:1},'逆向きの周回飛行 '+i+'周目（元の周回と逆回り・高度を下げた経路）',false));
+      s.push({t:'line', a:[Lx,zN,e1], b:[-Lx,zN,h2], dur:durL([Lx,zN],[-Lx,zN]), z:{f:1},
         label:'逆向きの周回飛行 '+i+'周目：長辺の直線飛行'});
-      s.push({t:'arc', c:[-105,-140], r:60, a0:PI/2, a1:3*PI/2, h0:h2, h1:h2, dur:4.5, z:{f:1},
-        label:'逆向きの周回飛行 '+i+'周目'});
-      s.push({t:'line', a:[-105,-200,h2], b:[105,-200,h2], dur:5.5, z:{f:1},
+      s.push(...leftTurn(h2,h2,{f:1},'逆向きの周回飛行 '+i+'周目',false));
+      s.push({t:'line', a:[-Lx,zF,h2], b:[Lx,zF,h2], dur:durL([-Lx,zF],[Lx,zF]), z:{f:1},
         label:'逆向きの周回飛行 '+i+'周目'+(i===2?'完了 → 通知':'')});
     }
-    s.push({t:'arc', c:[105,-140], r:60, a0:-PI/2, a1:PI/2, h0:h2, h1:h2-8, dur:4.5, z:{f:1},
-      label:'試験員の指示により着陸へ（自動又は受験者補助員の手動）'});
-    s.push({t:'line', a:[105,-80,h2-8], b:[-105,-80,h2-18], dur:5.5, z:{f:1},
+    s.push(...rightTurn(h2,h2-8,{f:1},'試験員の指示により着陸へ（自動又は受験者補助員の手動）',false));
+    s.push({t:'line', a:[Lx,zN,h2-8], b:[-Lx,zN,h2-18], dur:durL([Lx,zN],[-Lx,zN]), z:{f:1},
       label:'着陸進入の準備（進入方向を変える場合は任意経路）'});
-    s.push({t:'line', a:[-105,-80,h2-18], b:[-152,-80,h2-25], dur:2, z:{},
+    const xL=-(Lx+47);
+    s.push({t:'line', a:[-Lx,zN,h2-18], b:[xL,zN,h2-25], dur:durL([-Lx,zN],[xL,zN]), z:{},
       label:'向かい風方向へ着陸するため旋回（区画線・区画の適用外）'});
-    s.push({t:'arc', c:[-152,-55], r:25, a0:-PI/2, a1:-3*PI/2, h0:h2-25, h1:14, dur:3.2, z:{},
+    s.push({t:'arc', c:[xL,zN+25], r:25, a0:-PI/2, a1:-3*PI/2, h0:h2-25, h1:14, dur:durA(25,-PI/2,-3*PI/2), z:{},
       label:'向かい風方向の最終進入へ旋回'});
-    s.push({t:'line', a:[-152,-30,14], b:[-30,-30,0], dur:3.4, z:{r:1},
+    s.push({t:'line', a:[xL,-30,14], b:[-30,-30,0], dur:durL([xL,-30,14],[-30,-30,0]), z:{r:1},
       label:'向かい風方向へ着陸（降着装置の滑走路逸脱は不合格）'});
     s.push({t:'roll', a:[-30,-30], b:[38,-30], dur:2.6, mode:'dec', z:{r:1}, label:'滑走路内で減速・停止'});
     s.push({t:'wait', p:[38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'});
   }else{
-    s.push({t:'arc', c:[0,-140], r:60, a0:PI/2, a1:PI/2-4*PI, h0:alt, h1:alt, dur:14, z:{f:1},
+    s.push({t:'arc', c:[0,zc], r, a0:PI/2, a1:PI/2-4*PI, h0:alt, h1:alt, dur:durA(r,PI/2,PI/2-4*PI), z:{f:1},
       label:'円状の旋回飛行を2周 → 完了を通知'});
-    s.push({t:'line', a:[0,-80,alt], b:[105,-80,alt], dur:2.9, z:{f:1},
+    s.push({t:'line', a:[0,zN,alt], b:[Lx,zN,alt], dur:durL([0,zN],[Lx,zN]), z:{f:1},
       label:'試験員の指示により着陸へ（自動又は受験者補助員の手動）→ 降下開始'});
-    s.push({t:'arc', c:[105,-140], r:60, a0:PI/2, a1:-PI/2, h0:alt, h1:alt-25, dur:4.5, z:{f:1},
+    s.push(...rightTurn(alt,alt-25,{f:1},'降下しながら場周経路を飛行'));
+    s.push({t:'line', a:[Lx,zF,alt-25], b:[-Lx,zF,alt-45], dur:durL([Lx,zF],[-Lx,zF]), z:{f:1},
       label:'降下しながら場周経路を飛行'});
-    s.push({t:'line', a:[105,-200,alt-25], b:[-105,-200,alt-45], dur:5.5, z:{f:1},
-      label:'降下しながら場周経路を飛行'});
-    s.push({t:'arc', c:[-105,-140], r:60, a0:-PI/2, a1:-3*PI/2, h0:alt-45, h1:50, dur:4.5, z:{},
-      label:'向かい風方向へ着陸進入（進入方向を変える場合は任意経路）'});
-    s.push({t:'line', a:[-105,-80,50], b:[-48,-34,10], dur:2.8, z:{r:1}, label:'最終進入'});
+    s.push(...leftTurn(alt-45,50,{},'向かい風方向へ着陸進入（進入方向を変える場合は任意経路）'));
+    s.push({t:'line', a:[-Lx,zN,50], b:[-48,-34,10], dur:durL([-Lx,zN,50],[-48,-34,10]), z:{r:1}, label:'最終進入'});
     s.push({t:'line', a:[-48,-34,10], b:[-15,-30,0], dur:1.6, z:{r:1}, label:'接地（降着装置の滑走路逸脱は不合格）'});
     s.push({t:'roll', a:[-15,-30], b:[38,-30], dur:2.6, mode:'dec', z:{r:1}, label:'滑走路内で減速・停止'});
     s.push({t:'wait', p:[38,-30], dur:2.5, z:{}, label:'機体停止を試験員に通知 → 科目終了'});
@@ -523,33 +614,42 @@ function autoCircuit(cls, alt){
   return s;
 }
 
-// ---------- シナリオ一覧 ----------
-const SCENARIOS = {
- 1:[
-  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'① 周回飛行', mode:'OFF', limit:'制限10分',
-    course:'basic', cam:360, segs: basicCircuit(1) },
-  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'② 緊急着陸を伴う８の字飛行', mode:'OFF', limit:'制限10分',
-    course:'basic8', cam:360, segs: basicFig8(1) },
-  { cat:'夜間（昼間限定変更・150ルクス以下・自動操縦）', name:'夜 周回飛行（2周＋円旋回＋逆向き低高度2周）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
-    course:'auto', cam:430, night:true, auto:true, segs: autoCircuit(1,80) },
-  { cat:'目視外（目視内限定変更・画面監視・自動操縦）', name:'外 周回飛行（同経路・機体は見えない状態）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
-    course:'auto', cam:430, auto:true, segs: autoCircuit(1,80) },
-  { cat:'25kg以上（重量限定変更・自動操縦）', name:'重 周回飛行（飛行高度 概ね110m）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
-    course:'auto', cam:480, auto:true, segs: autoCircuit(1,110) }
- ],
- 2:[
-  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'① 周回飛行', mode:'ON', limit:'制限15分',
-    course:'basic', cam:360, segs: basicCircuit(2) },
-  { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'② ８の字飛行', mode:'ON', limit:'制限15分',
-    course:'basic8', cam:360, segs: basicFig8(2) },
-  { cat:'夜間（昼間限定変更・150ルクス以下・自動操縦）', name:'夜 周回飛行（3周＋円旋回→着陸）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
-    course:'auto', cam:430, night:true, auto:true, segs: autoCircuit(2,80) },
-  { cat:'目視外（目視内限定変更・画面監視・自動操縦）', name:'外 周回飛行（同経路・機体は見えない状態）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
-    course:'auto', cam:430, auto:true, segs: autoCircuit(2,80) },
-  { cat:'25kg以上（重量限定変更・自動操縦）', name:'重 周回飛行（飛行高度 概ね110m）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
-    course:'auto', cam:480, auto:true, segs: autoCircuit(2,110) }
- ]
-};
+// ---------- シナリオ一覧（機体条件から再生成できる） ----------
+function makeScenarios(){
+  const E=GEO.ext, cam=Math.round(E*1.07), camA=Math.round(E*1.27), camH=Math.round(E*1.42);
+  return {
+   1:[
+    { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'① 周回飛行', mode:'OFF', limit:'制限10分',
+      course:'basic', cam, segs: basicCircuit(1) },
+    { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'② 緊急着陸を伴う８の字飛行', mode:'OFF', limit:'制限10分',
+      course:'basic8', cam, segs: basicFig8(1) },
+    { cat:'夜間（昼間限定変更・150ルクス以下・自動操縦）', name:'夜 周回飛行（2周＋円旋回＋逆向き低高度2周）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+      course:'auto', cam:camA, night:true, auto:true, segs: autoCircuit(1,80) },
+    { cat:'目視外（目視内限定変更・画面監視・自動操縦）', name:'外 周回飛行（同経路・機体は見えない状態）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+      course:'auto', cam:camA, auto:true, segs: autoCircuit(1,80) },
+    { cat:'25kg以上（重量限定変更・自動操縦）', name:'重 周回飛行（飛行高度 概ね110m）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+      course:'auto', cam:camH, auto:true, segs: autoCircuit(1,110) }
+   ],
+   2:[
+    { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'① 周回飛行', mode:'ON', limit:'制限15分',
+      course:'basic', cam, segs: basicCircuit(2) },
+    { cat:'基本（最大離陸重量25kg未満・手動操縦）', name:'② ８の字飛行', mode:'ON', limit:'制限15分',
+      course:'basic8', cam, segs: basicFig8(2) },
+    { cat:'夜間（昼間限定変更・150ルクス以下・自動操縦）', name:'夜 周回飛行（3周＋円旋回→着陸）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+      course:'auto', cam:camA, night:true, auto:true, segs: autoCircuit(2,80) },
+    { cat:'目視外（目視内限定変更・画面監視・自動操縦）', name:'外 周回飛行（同経路・機体は見えない状態）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+      course:'auto', cam:camA, auto:true, segs: autoCircuit(2,80) },
+    { cat:'25kg以上（重量限定変更・自動操縦）', name:'重 周回飛行（飛行高度 概ね110m）', mode:'AUTO', limit:'経路設定20分＋飛行30分',
+      course:'auto', cam:camH, auto:true, segs: autoCircuit(2,110) }
+   ]
+  };
+}
+const SCENARIOS = makeScenarios();
+function rebuildScenarios(){
+  GEO=makeGeo(PARAMS);
+  const n=makeScenarios();
+  for(const c of [1,2]) SCENARIOS[c].splice(0, SCENARIOS[c].length, ...n[c]);
+}
 
 // ---------- 姿勢サンプリング（純関数） ----------
 function totalDur(sc){ return sc.segs.reduce((a,s)=>a+s.dur,0); }
@@ -748,7 +848,7 @@ scene.add(plane);
 
 // ---------- 区画・コース構築 ----------
 const YEL=0xf2b705, YELL=0xc79a00, RED=0xd63a2f, PATH=0x2f7bd9, GRN=0x2f9a5c;
-const ZR=430; // 区画線の描画長さ
+let ZR=430; // 区画線の描画長さ（機体条件から更新）
 
 function rayPt(deg,r){ const a=deg*Math.PI/180; return [r*Math.sin(a), -r*Math.cos(a)]; }
 function wedgeFill(d1,d2,color,op){ // d1<d2（度）扇形
@@ -786,18 +886,20 @@ function buildAngleZones(){
   courseGroup.add(groundLine([[0,10],[0,-ZR]],0x8a94a2,true,0.3));
 }
 function buildAutoZones(){
-  // 不合格区画：枠外（枠 x±235, z -265〜15）
-  const o=[[-320,100],[320,100],[320,-350],[-320,-350]];
-  const i=[[-235,15],[235,15],[235,-265],[-235,-265]];
+  // 不合格区画：飛行経路（角丸長方形）から B の余裕を取った枠。枠の外側への進入で不合格
+  const {Lx,r,B,H,zN,zF}=GEO;
+  const x1=Lx+r+B, zTop=zF-B, zBot=Math.max(zN+B, -30+45);
+  const o=[[-x1-H-60,zBot+H+60],[x1+H+60,zBot+H+60],[x1+H+60,zTop-H-60],[-x1-H-60,zTop-H-60]];
+  const i=[[-x1,zBot],[x1,zBot],[x1,zTop],[-x1,zTop]];
   zoneF.add(markZone(groundFill(o,[i],RED,0.16)));
   zoneF.add(markZone(groundLine([...i,i[0]],RED,false),1));
-  const l=makeLabel('不合格区画（枠の外側・進入で不合格）',11,'#fff','rgba(214,58,47,.92)');
-  l.position.set(0,18,-278); l.userData.base=1; zoneF.add(l);
+  const l=makeLabel('不合格区画（枠の外側・進入で不合格）　経路からB='+Math.round(B)+'m',11,'#fff','rgba(214,58,47,.92)');
+  l.position.set(0,18,zTop-13); l.userData.base=1; zoneF.add(l);
   // 施設飛行空域（不合格区画＋30m）
-  const a=[[-265,45],[265,45],[265,-295],[-265,-295]];
+  const a=[[-x1-H,zBot+H],[x1+H,zBot+H],[x1+H,zTop-H],[-x1-H,zTop-H]];
   courseGroup.add(groundLine([...a,a[0]],0x2f6fb0,true,0.35));
-  const la=makeLabel('施設飛行空域（不合格区画＋30m・立入管理措置）',9,'#2f6fb0','rgba(255,255,255,.85)');
-  la.position.set(0,10,-302); courseGroup.add(la);
+  const la=makeLabel('施設飛行空域（不合格区画＋30m・立入管理措置）約'+Math.round(GEO.W)+'m×'+Math.round(GEO.D)+'m',9,'#2f6fb0','rgba(255,255,255,.85)');
+  la.position.set(0,10,zTop-H-7); courseGroup.add(la);
 }
 function buildRunway(){
   const g=new THREE.Group();
@@ -824,16 +926,26 @@ function buildRunwayZone(){
 }
 // コース参考線（周回経路のオーバル）
 function buildOvalLine(){
-  const pts=[];
-  for(let x=-105;x<=105;x+=10) pts.push([x,-80]);           // 近側 +x
-  for(let d=90;d>=-90;d-=9){const a=d*Math.PI/180; pts.push([105+60*Math.cos(a), -140+60*Math.sin(a)]);} // 右旋回
-  for(let x=105;x>=-105;x-=10) pts.push([x,-200]);          // 遠側 -x
-  for(let d=-90;d>=-270;d-=9){const a=d*Math.PI/180; pts.push([-105+60*Math.cos(a), -140+60*Math.sin(a)]);} // 左旋回
+  const {Lx,r,zN,zF,zc,zc2}=GEO; const pts=[];
+  const step=Math.max(4,Lx/20);
+  for(let x=-Lx;x<=Lx;x+=step) pts.push([x,zN]); pts.push([Lx,zN]);                       // 近側 +x
+  for(let d=90;d>=0;d-=9){const a=d*PI/180; pts.push([Lx+r*Math.cos(a), zc+r*Math.sin(a)]);}   // 右旋回(前半)
+  for(let d=0;d>=-90;d-=9){const a=d*PI/180; pts.push([Lx+r*Math.cos(a), zc2+r*Math.sin(a)]);} // 右旋回(後半)
+  for(let x=Lx;x>=-Lx;x-=step) pts.push([x,zF]); pts.push([-Lx,zF]);                      // 遠側 -x
+  for(let d=-90;d>=-180;d-=9){const a=d*PI/180; pts.push([-Lx+r*Math.cos(a), zc2+r*Math.sin(a)]);}
+  for(let d=-180;d>=-270;d-=9){const a=d*PI/180; pts.push([-Lx+r*Math.cos(a), zc+r*Math.sin(a)]);}
+  pts.push([-Lx,zN]);
   return groundLine(pts,PATH,false,0.5);
 }
 
 function buildCourse(sc){
   [courseGroup,trailGroup,zoneF,zoneD,zoneR].forEach(g=>g.clear());
+  // 機体条件に応じて表示範囲・区画線長・カメラ注視点・操縦装置画面の範囲を更新
+  ZR=Math.round(GEO.ext*1.3);
+  CAM_TARGET.set(0,25,GEO.zMid);
+  { const hw=GEO.ext*0.95, hh=hw*0.63;
+    pipCam.left=-hw; pipCam.right=hw; pipCam.top=hh; pipCam.bottom=-hh; pipCam.far=GEO.ext*4;
+    pipCam.position.set(0,GEO.ext*1.4,GEO.zMid-10); pipCam.lookAt(0,0,GEO.zMid-10); pipCam.updateProjectionMatrix(); }
   courseGroup.add(buildRunway());
   buildRunwayZone();
   const cs=sc.course;
@@ -842,22 +954,22 @@ function buildCourse(sc){
     buildAngleZones();
     courseGroup.add(buildOvalLine());
     if(cs==='basic8'){
-      courseGroup.add(groundLine(circlePts(60,-140,60),PATH,true,0.5));
-      courseGroup.add(groundLine(circlePts(-60,-140,60),PATH,true,0.5));
+      courseGroup.add(groundLine(circlePts(GEO.r,GEO.zc,GEO.r),PATH,true,0.5));
+      courseGroup.add(groundLine(circlePts(-GEO.r,GEO.zc,GEO.r),PATH,true,0.5));
       const e=makeLabel('E',12,'#2f7bd9','rgba(255,255,255,.85)');
-      e.position.set(-60,10,-205); courseGroup.add(e);
+      e.position.set(-GEO.r,10,GEO.zc-GEO.r-5); courseGroup.add(e);
     }
   }
   if(cs==='auto'){
     buildAutoZones();
     courseGroup.add(buildOvalLine());
-    courseGroup.add(groundLine(circlePts(0,-140,60),PATH,true,0.5)); // 円状旋回
+    courseGroup.add(groundLine(circlePts(0,GEO.zc,GEO.r),PATH,true,0.5)); // 円状旋回
     const hl=makeLabel('円状の旋回飛行（上空待機）',8,'#2f7bd9','rgba(255,255,255,.85)');
-    hl.position.set(0,8,-140); courseGroup.add(hl);
+    hl.position.set(0,8,GEO.zc); courseGroup.add(hl);
   }
   // A・B地点
-  const A=makeLabel('A',13,'#2f7bd9','rgba(255,255,255,.9)'); A.position.set(172,12,-140); courseGroup.add(A);
-  const B=makeLabel('B',13,'#2f7bd9','rgba(255,255,255,.9)'); B.position.set(-172,12,-140); courseGroup.add(B);
+  const A=makeLabel('A',13,'#2f7bd9','rgba(255,255,255,.9)'); A.position.set(GEO.Lx+GEO.r+7,12,GEO.zMid); courseGroup.add(A);
+  const B=makeLabel('B',13,'#2f7bd9','rgba(255,255,255,.9)'); B.position.set(-(GEO.Lx+GEO.r+7),12,GEO.zMid); courseGroup.add(B);
 
   // 人物（試験員補助員は受験者の真後ろ）
   courseGroup.add(person(6,8,'受験者',0x2f5fa8));
@@ -1102,6 +1214,36 @@ selectScenario(0);
 requestAnimationFrame(loop);
 </script>
 <script>
+"use strict";
+/* 機体条件パネル：値の変更 → 保存(localStorage/URL) → シナリオ再生成 → 再描画 */
+(function(){
+  const $=id=>document.getElementById(id);
+  const vc=$('pVc'), th=$('pTh'), tt=$('pT'), out=$('pOut'), kmh=$('pVcK');
+  function show(){
+    vc.value=PARAMS.vc; th.value=PARAMS.th; tt.value=PARAMS.t;
+    kmh.textContent='（'+Math.round(PARAMS.vc*3.6)+' km/h）';
+    const g=GEO;
+    out.textContent='旋回半径 r='+g.r.toFixed(1)+'m｜長辺の直線 '+g.Llong.toFixed(0)+'m（15秒）'+(g.Lshort>0?'｜短辺の直線 '+g.Lshort.toFixed(0)+'m':'')+
+      '｜不合格区画までの余裕 B='+g.B.toFixed(0)+'m｜施設飛行空域 約'+g.W.toFixed(0)+'m×'+g.D.toFixed(0)+'m';
+  }
+  function apply(){
+    PARAMS={vc:+vc.value||PARAM_DEF.vc, th:+th.value||PARAM_DEF.th, t:+tt.value||0};
+    PARAMS.vc=Math.min(60,Math.max(5,PARAMS.vc)); PARAMS.th=Math.min(70,Math.max(10,PARAMS.th)); PARAMS.t=Math.min(5,Math.max(0,PARAMS.t));
+    try{ localStorage.setItem('uasAirplaneParams',JSON.stringify(PARAMS)); }catch(e){}
+    try{ const u=new URL(location.href); u.searchParams.set('vc',PARAMS.vc); u.searchParams.set('th',PARAMS.th); u.searchParams.set('t',PARAMS.t); history.replaceState(null,'',u.toString()); }catch(e){}
+    rebuildScenarios(); selectScenario(curScIdx); show();
+  }
+  [vc,th,tt].forEach(el=>el.addEventListener('change',apply));
+  $('pReset').onclick=()=>{ vc.value=PARAM_DEF.vc; th.value=PARAM_DEF.th; tt.value=PARAM_DEF.t; apply(); };
+  $('pLoad').onclick=()=>{
+    let p=null; try{ p=JSON.parse(localStorage.getItem('uasAirspaceParams')||'null'); }catch(e){}
+    if(!p){ alert('空域計算ツール（飛行機：空域計算3D）で一度計算すると、その条件をここに読み込めます。'); return; }
+    vc.value=+p.vc; th.value=+p.th; tt.value=+p.t||0; apply();
+  };
+  show();
+})();
+</script>
+<script>
 window.PLAYER_CFG={
   id:'airplane',
   state:()=>curClass+'-'+curScIdx,
@@ -1111,6 +1253,16 @@ window.PLAYER_CFG={
   ticks:()=>[]
 };
 </script>
-<script src="vendor/player-extras.js?v=2"></script>
+<script src="vendor/player-extras.js?v=3"></script>
+<script>
+window.FX_CFG={
+  pos:()=>plane.position,
+  seg:()=>samplePose(SCENARIOS[curClass][curScIdx],t).seg,
+  scale:()=>7,
+  wind:()=>{const sc=SCENARIOS[curClass][curScIdx]; if(sc.night) return null; return [88, 22, 7, Math.PI];},
+  skyR:3800
+};
+</script>
+<script src="vendor/fx.js?v=1"></script>
 </body>
 </html>

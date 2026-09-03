@@ -209,6 +209,7 @@
   <a href="airplane.html">実地試験：飛行機</a>
   <a href="airspace.html">飛行機：空域計算3D</a>
   <a href="renewal.html" class="on">更新講習</a>
+  <a href="compare.html">一等・二等比較</a>
 </nav>
 
 <div class="wrap">
@@ -1948,6 +1949,16 @@ window.PLAYER_CFG={
     return sc.steps.map((s,i)=>stepStartTime(sc,i)/tt); }
 };
 </script>
-<script src="vendor/player-extras.js?v=2"></script>
+<script src="vendor/player-extras.js?v=3"></script>
+<script>
+window.FX_CFG={
+  pos:()=>vehicles[curVehicle].group.position,
+  seg:()=>samplePose(curScenario(),t).seg,
+  scale:()=>({mfig8:1,mline:1,hline:1.8,hhigh:2.4,pfig8:7}[curScenario().course]||1),
+  wind:()=>({mfig8:[-11,4.5,0.9,Math.PI/4], mline:[-12,5,0.9,Math.PI/4], hline:[-27,10,1.6,Math.PI/4], hhigh:[-17,14,1.6,Math.PI/4], pfig8:[88,22,7,Math.PI]}[curScenario().course]||null),
+  skyR:3800
+};
+</script>
+<script src="vendor/fx.js?v=1"></script>
 </body>
 </html>
