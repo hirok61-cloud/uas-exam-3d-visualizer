@@ -2,8 +2,14 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" id="vp" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="UASシム">
+<meta name="theme-color" content="#0b1626">
+<link rel="manifest" href="site.webmanifest">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <title>フライトシミュレーター（マルチローター）</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjMwIiBmaWxsPSIjMTczMzVmIi8+CjxnIHN0cm9rZT0iI2VhZjFmYiIgc3Ryb2tlLXdpZHRoPSIzLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CjxsaW5lIHgxPSIxOSIgeTE9IjE5IiB4Mj0iNDUiIHkyPSI0NSIvPgo8bGluZSB4MT0iNDUiIHkxPSIxOSIgeDI9IjE5IiB5Mj0iNDUiLz4KPC9nPgo8Y2lyY2xlIGN4PSIxOSIgY3k9IjE5IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPGNpcmNsZSBjeD0iNDUiIGN5PSIxOSIgcj0iNi40IiBmaWxsPSIjZTg2NDJjIi8+CjxjaXJjbGUgY3g9IjE5IiBjeT0iNDUiIHI9IjYuNCIgZmlsbD0iI2U4NjQyYyIvPgo8Y2lyY2xlIGN4PSI0NSIgY3k9IjQ1IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPHJlY3QgeD0iMjUuNSIgeT0iMjUuNSIgd2lkdGg9IjEzIiBoZWlnaHQ9IjEzIiByeD0iMy4yIiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPgo=">
 <meta name="description" content="マルチローターのフライトシミュレーター。位置安定機能ON/OFF・風（一定風・突風・乱流）・墜落判定・試験コースを再現し、画面のスティックやキーボードで操縦できます。">
@@ -18,10 +24,15 @@
 <style>
   :root{ --ink:#e7ecf5; --dim:rgba(12,22,40,.78); --line:rgba(255,255,255,.22); --accent:#ffd76a; --ok:#2e8b57; --warn:#e07b00; --danger:#d63a2f; }
   *{box-sizing:border-box; margin:0; padding:0;}
-  html,body{height:100%; overflow:hidden; background:#0b1626; color:var(--ink);
-    font-family:system-ui,-apple-system,"Hiragino Sans","Meiryo",sans-serif; -webkit-user-select:none; user-select:none; touch-action:none;}
-  #stage{position:fixed; inset:0; width:100%; height:100%; display:block;}
-  button,select,input{font-family:inherit;}
+  html,body{height:100%; height:100dvh; overflow:hidden; background:#0b1626; color:var(--ink);
+    font-family:system-ui,-apple-system,"Hiragino Sans","Meiryo",sans-serif; -webkit-user-select:none; user-select:none;
+    touch-action:none; -webkit-text-size-adjust:100%; overscroll-behavior:none;}
+  #stage{position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none;}
+  button,select,input,label,a{font-family:inherit; touch-action:manipulation;}
+  /* ズームが効いてしまったときの復帰ボタン */
+  #zoomFix{position:fixed; left:50%; top:calc(6px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:12; display:none;
+    border:0; border-radius:8px; background:#e8642c; color:#fff; font-size:12px; font-weight:700; padding:8px 14px; box-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #zoomFix.on{display:block;}
 
   /* ---- 上部バー ---- */
   #top{position:fixed; left:0; right:0; top:0; display:flex; align-items:center; gap:6px; padding:8px 10px; padding-top:calc(8px + env(safe-area-inset-top));
@@ -35,7 +46,7 @@
   select.tb{appearance:none; -webkit-appearance:none; padding-right:22px;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23fff'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; background-size:9px;}
   #top .spacer{flex:1;}
-  body.pseudo-fs #top > *:not(#btnFS){display:none;}
+  body.pseudo-fs #top > *:not(#btnFS){display:none !important;}
   body.pseudo-fs #top{background:none; justify-content:flex-end;}
   body.pseudo-fs #keys{display:none;}
   #resCtl{display:inline-flex; align-items:center; gap:4px; padding:3px 6px 3px 10px;}
@@ -71,7 +82,44 @@
   .stick .lab{position:absolute; left:0; width:100%; text-align:center; font-size:10px; color:rgba(255,255,255,.8); line-height:1.2; pointer-events:none;}
   .stick .lab.t{top:5px;} .stick .lab.b{bottom:5px;}
   .stick .lab.l,.stick .lab.r{top:50%; width:auto; transform:translateY(-50%);} .stick .lab.l{left:5px;} .stick .lab.r{right:5px; left:auto;}
-  @media (max-height:420px){ .stick{width:120px; height:120px;} .stick .knob{width:44px; height:44px;} }
+  /* ---- 画面が低い端末（スマホ横向き）向けの詰めたレイアウト ---- */
+  body.compact #top{flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
+    padding:5px 8px; padding-top:calc(5px + env(safe-area-inset-top)); gap:5px; touch-action:pan-x; pointer-events:auto;
+    scrollbar-width:none;}
+  body.compact #top::-webkit-scrollbar{display:none;}
+  body.compact #top .ttl, body.compact #top .spacer{display:none;}
+  body.compact .tb{padding:5px 8px; font-size:11px; border-radius:7px;}
+  body.compact select.tb{max-width:150px; text-overflow:ellipsis;}
+  body.compact #resCtl{padding:2px 4px 2px 7px;}
+  body.compact #resCtl button{width:22px; height:20px; font-size:12px;}
+  body.compact #resCtl b{min-width:32px; font-size:11px;}
+  /* HUD：上部の1行ストリップに */
+  body.compact #hud{left:6px; right:6px; top:calc(43px + env(safe-area-inset-top)); min-width:0; padding:3px 9px;
+    display:flex; align-items:center; gap:11px; overflow:hidden; white-space:nowrap; border-radius:8px;}
+  body.compact #hud .row{display:inline-flex; align-items:baseline; gap:4px; justify-content:flex-start;}
+  body.compact #hud .row span:first-child{font-size:9.5px;}
+  body.compact #hud b{font-size:12px;}
+  body.compact #hud .mode{margin:0; padding:0; border:0; gap:6px;}
+  body.compact #hud .row[data-k="gnd"], body.compact #hud .row[data-k="hdg"]{display:none;}
+  body.tiny #hud .row[data-k="vz"]{display:none;}
+  body.tiny #hud #hTime{display:none;}
+  /* 課題：下の中央（スティックの間）へ */
+  body.compact #goal{top:auto; bottom:calc(8px + env(safe-area-inset-bottom)); left:50%; right:auto; transform:translateX(-50%);
+    max-width:44vw; padding:5px 11px; font-size:10.5px; text-align:center; pointer-events:auto; cursor:pointer;}
+  body.compact #goal b{font-size:11px;}
+  body.compact #goal .st{display:none; margin-top:2px;}
+  body.compact #goal.open .st{display:block;}
+  body.compact #goal.open{max-width:56vw;}
+  body.compact #zoneMsg{top:calc(74px + env(safe-area-inset-top)); font-size:11.5px; padding:4px 11px; max-width:70vw; text-align:center;}
+  body.compact .stick{width:118px; height:118px; bottom:calc(10px + env(safe-area-inset-bottom));}
+  body.compact .stick .knob{width:44px; height:44px;}
+  body.compact .stick .lab{font-size:9px;}
+  body.compact #keys{display:none;}
+  body.compact .panel{top:calc(43px + env(safe-area-inset-top)); bottom:calc(8px + env(safe-area-inset-bottom)); width:280px; padding:10px 12px; font-size:12px;}
+  body.tiny .stick{width:100px; height:100px;}
+  body.tiny .stick .knob{width:38px; height:38px;}
+  body.tiny .stick .lab.l, body.tiny .stick .lab.r{display:none;}
+  body.tiny #goal{max-width:38vw; font-size:10px;}
   #keys{position:fixed; bottom:calc(20px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); z-index:4; pointer-events:none;
     font-size:10.5px; color:rgba(255,255,255,.75); text-shadow:0 1px 2px #000; text-align:center; max-width:46%;}
   @media (pointer:coarse){ #keys{display:none;} }
@@ -131,9 +179,9 @@
 <div id="hud">
   <div class="row"><span>対地高度</span><b id="hAlt">0.0 m</b></div>
   <div class="row"><span>対気速度</span><b id="hAir">0.0 m/s</b></div>
-  <div class="row"><span>対地速度</span><b id="hGnd">0.0 m/s</b></div>
-  <div class="row"><span>上昇率</span><b id="hVz">0.0 m/s</b></div>
-  <div class="row"><span>機首方位</span><b id="hHdg">0°</b></div>
+  <div class="row" data-k="gnd"><span>対地速度</span><b id="hGnd">0.0 m/s</b></div>
+  <div class="row" data-k="vz"><span>上昇率</span><b id="hVz">0.0 m/s</b></div>
+  <div class="row" data-k="hdg"><span>機首方位</span><b id="hHdg">0°</b></div>
   <div class="row"><span>風</span><b id="hWind">2.5 m/s</b></div>
   <div class="mode"><span class="badge on" id="hMode">位置安定 ON</span><span id="hTime" style="opacity:.75">0:00</span><span id="hCrash" style="opacity:.75"></span></div>
 </div>
@@ -182,6 +230,20 @@
 </div>
 
 <div id="crash"><div class="box"><h2>墜落</h2><p id="crashWhy">衝撃が大きすぎました</p><button id="crashReset">↺ リセットして続ける</button></div></div>
+<button id="zoomFix">🔍 表示を元に戻す</button>
+<div id="fsHelp" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:11; background:rgba(6,12,22,.82); padding:18px;">
+  <div style="background:rgba(12,22,40,.96); border:1px solid var(--line); border-radius:14px; padding:18px 20px; max-width:440px; font-size:12.5px; line-height:1.7;">
+    <b style="font-size:14px; color:var(--accent);">iPhoneのSafariでは全画面にできません</b>
+    <p style="margin:8px 0; opacity:.9">iPhone版Safariは、動画以外を全画面表示する機能（Fullscreen API）に対応していないためです。次のいずれかで実質的な全画面になります。</p>
+    <p style="margin:8px 0"><b>① ホーム画面に追加する（おすすめ・本当の全画面）</b><br>
+    Safari下部の<b>共有ボタン</b> → <b>ホーム画面に追加</b>。追加したアイコンから開くとSafariのバーが消え、横向きの全画面で動きます。</p>
+    <p style="margin:8px 0"><b>② このまま簡易全画面で使う</b><br>上部のバーを隠して画面を広く使います（Safariのバーは残ります）。</p>
+    <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap">
+      <button id="fsPseudo" style="flex:1; min-width:130px; border:0; border-radius:8px; padding:10px; background:#fff; color:#1c2430; font-weight:700; cursor:pointer;">簡易全画面で続ける</button>
+      <button id="fsClose" style="border:1px solid var(--line); border-radius:8px; padding:10px 14px; background:transparent; color:#fff; cursor:pointer;">閉じる</button>
+    </div>
+  </div>
+</div>
 <div id="rotate"><div>📱 画面を横向きにしてください<br><small style="opacity:.7">両親指でスティックを操作できます</small><br><button id="rotateSkip" style="margin-top:14px; padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,.4); background:transparent; color:#fff; font-size:13px;">このまま使う</button></div></div>
 <div id="loading">読み込み中…</div>
 
@@ -209,6 +271,10 @@ const CFG={ mode:2, tilt:28, expo:0.3, quality:'auto', res:Math.min(2,window.dev
   wind:{mean:2.5, dir:0, gust:0, turb:0.15, dirVar:10} };
 try{ const sv=JSON.parse(localStorage.getItem('uasSimCfg')||'{}'); const w0={...CFG.wind}; Object.assign(CFG, sv); CFG.wind=Object.assign(w0, sv.wind||{}); for(const k in CFG.wind){ if(!Number.isFinite(CFG.wind[k])) CFG.wind[k]=w0[k]; } }catch(e){}
 function saveCfg(){ try{ localStorage.setItem('uasSimCfg', JSON.stringify(CFG)); }catch(e){} }
+// ホーム画面から起動（standalone/fullscreen）ならブラウザのバーが無く既に全画面
+const STANDALONE = (window.navigator.standalone===true)
+  || matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches;
+let needsResize=true;   // 解像度・画面サイズの変更でレンダラを張り直す
 
 /* ---------- コース定義（ゾーン判定・描画） ---------- */
 const COURSES={
@@ -645,6 +711,7 @@ canvas.addEventListener('wheel',e=>{ if(CFG.view!=='orbit') return; e.preventDef
 function cameraStep(dt){
   const standZ=(course.stand||0)+ (course===COURSES.free?6:0);
   const op=world.userData.person; op.position.set(course===COURSES.free?2:0.9, 0, course===COURSES.free?0:standZ);
+  op.visible=(CFG.view!=='pilot');   // 操縦者視点では自分の頭が画面を塞ぐので隠す
   const opPos=new THREE.Vector3(op.position.x,1.6,op.position.z);
   const dp=new THREE.Vector3(S.x,S.y,S.z);
   let pos,tgt,fov=45;
@@ -709,6 +776,11 @@ function hudStep(){
   $('btnSound').textContent=CFG.sound?'🔊 音':'🔇 音'; $('btnSound').classList.toggle('on',CFG.sound);
   $('btnFS').onclick=toggleFS;
   $('rotateSkip').onclick=()=>{ $('rotate').style.display='none'; };
+  $('fsPseudo').onclick=()=>{ $('fsHelp').style.display='none'; setPseudoFS(true); };
+  $('fsClose').onclick=()=>{ $('fsHelp').style.display='none'; };
+  $('goal').onclick=()=>{ if(document.body.classList.contains('compact')) $('goal').classList.toggle('open'); };
+  // ホーム画面から起動していれば既に全画面なのでボタンを隠す
+  if(STANDALONE){ $('btnFS').style.display='none'; lockLandscape(); }
   // 風スライダー
   const ws=[['wMean','mean','vMean',v=>v.toFixed(1)+' m/s'],['wDir','dir','vDir',v=>v+'°'],['wGust','gust','vGust',v=>'+'+v.toFixed(1)+' m/s'],['wTurb','turb','vTurb',v=>Math.round(v*100)+'%'],['wVar','dirVar','vVar',v=>'±'+v+'°']];
   function syncWind(){ ws.forEach(w=>{ $(w[0]).value=CFG.wind[w[1]]; $(w[2]).textContent=w[3](+CFG.wind[w[1]]); }); }
@@ -747,21 +819,22 @@ function applyQuality(){
   $('sRes').value=pr;
 }
 let pseudoFS=false;
-function setPseudoFS(on){ pseudoFS=on; document.body.classList.toggle('pseudo-fs',on); $('btnFS').textContent=on?'✕ 全画面を終了':'⛶ 全画面'; needsResize=true;
-  if(on) showZone('d','この環境ではブラウザの全画面が使えないため簡易全画面にしました（iPhoneは「ホーム画面に追加」で全画面になります）'); }
+function setPseudoFS(on){ pseudoFS=on; document.body.classList.toggle('pseudo-fs',on); $('btnFS').textContent=on?'✕ 全画面を終了':'⛶ 全画面'; needsResize=true; syncCompact(); }
 function isFS(){ return !!(document.fullscreenElement||document.webkitFullscreenElement); }
 function lockLandscape(){ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} }
+function fsSupported(){ const el=document.documentElement; return !!(el.requestFullscreen||el.webkitRequestFullscreen); }
 function toggleFS(){
   const doc=document, el=doc.documentElement;
   if(isFS()){ try{ (doc.exitFullscreen||doc.webkitExitFullscreen).call(doc); }catch(e){} return; }
   if(pseudoFS){ setPseudoFS(false); return; }
-  // Safari(macOS)は webkit プレフィックス版、iOS Safari は要素の全画面自体が無い
+  // ① 標準API ② Safari(macOS)のwebkit版 ③ 非対応(iPhone Safari)は案内＋簡易全画面
   try{
-    if(el.requestFullscreen){ const p=el.requestFullscreen(); if(p&&p.then) p.then(lockLandscape).catch(()=>setPseudoFS(true)); return; }
-    if(el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); setTimeout(()=>{ if(!isFS()) setPseudoFS(true); },400); return; }
+    if(el.requestFullscreen){ const p=el.requestFullscreen(); if(p&&p.then) p.then(lockLandscape).catch(()=>showFsHelp()); return; }
+    if(el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); setTimeout(()=>{ if(!isFS()) showFsHelp(); },400); return; }
   }catch(e){}
-  setPseudoFS(true);
+  showFsHelp();
 }
+function showFsHelp(){ $('fsHelp').style.display='flex'; }
 ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{ $('btnFS').textContent=isFS()?'✕ 全画面を終了':'⛶ 全画面'; needsResize=true; }));
 window.addEventListener('keydown',e=>{
   if(e.metaKey||e.ctrlKey||e.altKey) return; const tg=e.target; if(tg&&/INPUT|SELECT|TEXTAREA/.test(tg.tagName)) return;
@@ -773,8 +846,44 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; });
 
+/* ---------- 画面サイズへの追従・ズーム対策 ---------- */
+function syncCompact(){
+  const h=(window.visualViewport?window.visualViewport.height:window.innerHeight);
+  const w=(window.visualViewport?window.visualViewport.width:window.innerWidth);
+  document.body.classList.toggle('compact', h<520 || (w<820&&h<600));
+  document.body.classList.toggle('tiny', h<400);
+  needsResize=true;
+}
+// iOS Safari はピンチ/ダブルタップのズームを user-scalable=no では止められないため、
+// ジェスチャを直接抑止し、それでもズームされた場合は復帰ボタンを出す。
+['gesturestart','gesturechange','gestureend'].forEach(ev=>
+  document.addEventListener(ev, e=>{ e.preventDefault(); }, {passive:false}));
+document.addEventListener('dblclick', e=>e.preventDefault(), {passive:false});
+let lastTouchEnd=0;
+document.addEventListener('touchend', e=>{
+  const now=Date.now();
+  if(now-lastTouchEnd<320) e.preventDefault();   // ダブルタップ拡大の抑止
+  lastTouchEnd=now;
+}, {passive:false});
+function zoomedIn(){ const vv=window.visualViewport; return !!vv && vv.scale>1.02; }
+function resetZoom(){
+  const vp=$('vp');
+  vp.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+  setTimeout(()=>{ vp.setAttribute('content','width=device-width, initial-scale=1, viewport-fit=cover'); syncCompact(); }, 350);
+  window.scrollTo(0,0);
+}
+$('zoomFix').onclick=resetZoom;
+if(window.visualViewport){
+  const vv=window.visualViewport;
+  const onVV=()=>{ $('zoomFix').classList.toggle('on', zoomedIn()); syncCompact(); };
+  vv.addEventListener('resize',onVV); vv.addEventListener('scroll',onVV);
+}
+window.addEventListener('resize',syncCompact);
+window.addEventListener('orientationchange',()=>setTimeout(syncCompact,300));
+syncCompact();
+
 /* ---------- メインループ ---------- */
-let needsResize=true, prev=performance.now(), fpsAcc=0, fpsN=0, fpsT=0;
+let prev=performance.now(), fpsAcc=0, fpsN=0, fpsT=0;
 applyQuality();
 { const alias={square1:'sq1',square2:'sq2',fig8:'fig8b',pirouette:'pir1',line:'line2'}; let h=location.hash.replace('#',''); h=alias[h]||h; setCourse(COURSES[h]?h:'free'); }
 $('loading').style.display='none';

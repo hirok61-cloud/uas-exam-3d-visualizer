@@ -1,0 +1,18 @@
+{
+  "name": "無人航空機 フライトシミュレーター",
+  "short_name": "UASシム",
+  "description": "マルチローターの操縦シミュレーター。位置安定機能ON/OFF・風・試験コースを再現。",
+  "start_url": "./sim.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0b1626",
+  "theme_color": "#0b1626",
+  "lang": "ja",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
