@@ -55,7 +55,7 @@
   a.tb{text-decoration:none;}
 
   /* ---- 計器 HUD ---- */
-  #hud{position:fixed; left:10px; top:calc(52px + env(safe-area-inset-top)); z-index:4; pointer-events:none;
+  #hud{position:fixed; left:10px; top:calc(var(--topH,52px) + 6px); z-index:4; pointer-events:none;
     background:var(--dim); border:1px solid var(--line); border-radius:10px; padding:8px 12px; font-size:12px; backdrop-filter:blur(4px); min-width:186px;}
   #hud .row{display:flex; justify-content:space-between; gap:12px; line-height:1.55;}
   #hud .row span:first-child{opacity:.7;}
@@ -63,10 +63,10 @@
   #hud .mode{margin-top:4px; padding-top:4px; border-top:1px solid var(--line); display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
   .badge{display:inline-block; padding:1px 8px; border-radius:9px; font-size:10.5px; font-weight:700;}
   .badge.on{background:var(--ok);} .badge.off{background:var(--warn);}
-  #zoneMsg{position:fixed; top:calc(52px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); z-index:4; pointer-events:none;
+  #zoneMsg{position:fixed; top:calc(var(--topH,52px) + 6px); left:50%; transform:translateX(-50%); z-index:4; pointer-events:none;
     padding:6px 14px; border-radius:8px; font-weight:700; font-size:13px; display:none;}
   #zoneMsg.d{display:block; background:#c79a00;} #zoneMsg.f{display:block; background:var(--danger);}
-  #goal{position:fixed; right:10px; top:calc(52px + env(safe-area-inset-top)); z-index:4; pointer-events:none; max-width:300px;
+  #goal{position:fixed; right:10px; top:calc(var(--topH,52px) + 6px); z-index:4; pointer-events:none; max-width:300px;
     background:var(--dim); border:1px solid var(--line); border-radius:10px; padding:7px 11px; font-size:11.5px; line-height:1.5; backdrop-filter:blur(4px);}
   #goal b{color:var(--accent);}
   #goal .st{opacity:.85; margin-top:3px;}
@@ -94,7 +94,7 @@
   body.compact #resCtl button{width:22px; height:20px; font-size:12px;}
   body.compact #resCtl b{min-width:32px; font-size:11px;}
   /* HUD：上部の1行ストリップに */
-  body.compact #hud{left:6px; right:6px; top:calc(43px + env(safe-area-inset-top)); min-width:0; padding:3px 9px;
+  body.compact #hud{left:6px; right:6px; top:calc(var(--topH,43px) + 4px); min-width:0; padding:3px 9px;
     display:flex; align-items:center; gap:11px; overflow:hidden; white-space:nowrap; border-radius:8px;}
   body.compact #hud .row{display:inline-flex; align-items:baseline; gap:4px; justify-content:flex-start;}
   body.compact #hud .row span:first-child{font-size:9.5px;}
@@ -110,12 +110,12 @@
   body.compact #goal .st{display:none; margin-top:2px;}
   body.compact #goal.open .st{display:block;}
   body.compact #goal.open{max-width:56vw;}
-  body.compact #zoneMsg{top:calc(74px + env(safe-area-inset-top)); font-size:11.5px; padding:4px 11px; max-width:70vw; text-align:center;}
+  body.compact #zoneMsg{top:calc(var(--topH,43px) + 35px); font-size:11.5px; padding:4px 11px; max-width:70vw; text-align:center;}
   body.compact .stick{width:118px; height:118px; bottom:calc(10px + env(safe-area-inset-bottom));}
   body.compact .stick .knob{width:44px; height:44px;}
   body.compact .stick .lab{font-size:9px;}
   body.compact #keys{display:none;}
-  body.compact .panel{top:calc(43px + env(safe-area-inset-top)); bottom:calc(8px + env(safe-area-inset-bottom)); width:280px; padding:10px 12px; font-size:12px;}
+  body.compact .panel{top:calc(var(--topH,43px) + 4px); bottom:calc(8px + env(safe-area-inset-bottom)); width:280px; padding:10px 12px; font-size:12px;}
   body.tiny .stick{width:100px; height:100px;}
   body.tiny .stick .knob{width:38px; height:38px;}
   body.tiny .stick .lab.l, body.tiny .stick .lab.r{display:none;}
@@ -125,7 +125,7 @@
   @media (pointer:coarse){ #keys{display:none;} }
 
   /* ---- パネル（風・設定・ヘルプ） ---- */
-  .panel{position:fixed; right:10px; top:calc(52px + env(safe-area-inset-top)); bottom:calc(190px + env(safe-area-inset-bottom)); width:300px; max-width:92vw; z-index:7;
+  .panel{position:fixed; right:10px; top:calc(var(--topH,52px) + 6px); bottom:calc(190px + env(safe-area-inset-bottom)); width:300px; max-width:92vw; z-index:7;
     background:rgba(12,22,40,.92); border:1px solid var(--line); border-radius:12px; padding:12px 14px; overflow:auto; display:none; backdrop-filter:blur(6px); font-size:12.5px;}
   .panel.open{display:block;}
   .panel{touch-action:pan-y;}
@@ -147,6 +147,39 @@
   #crash h2{color:#ff6a5a; font-size:26px; margin-bottom:6px;}
   #crash p{opacity:.85; margin-bottom:12px; font-size:13px;}
   #crash button{font-size:15px; font-weight:700; padding:10px 22px; border-radius:9px; border:0; background:#fff; color:#1c2430; cursor:pointer;}
+  /* ---- 訓練モード ---- */
+  #trList .g{font-size:11px; color:var(--accent); margin:10px 0 5px; letter-spacing:.04em;}
+  #trList button{display:block; width:100%; text-align:left; border:1px solid var(--line); background:rgba(255,255,255,.06); color:#fff;
+    border-radius:8px; padding:8px 10px; margin-bottom:5px; cursor:pointer; font-size:12px; line-height:1.45;}
+  #trList button:hover{background:rgba(255,255,255,.14);}
+  #trList button.done{border-color:rgba(255,215,106,.5);}
+  #trList .st{float:right; color:var(--accent); font-size:11px; letter-spacing:1px;}
+  #trList small{display:block; opacity:.65; font-size:10.5px;}
+  #result{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:11; background:rgba(6,12,22,.7); padding:16px;}
+  #result.on{display:flex;}
+  #result .box{background:rgba(12,22,40,.96); border:1px solid var(--line); border-radius:14px; padding:18px 22px; max-width:400px; width:100%; text-align:center;}
+  #result h2{font-size:22px; margin-bottom:4px;}
+  #result.ok h2{color:#6fe3a4;} #result.ng h2{color:#ff6a5a;}
+  #result .stars{font-size:22px; color:var(--accent); letter-spacing:4px; min-height:26px;}
+  #result p{opacity:.85; font-size:12.5px; margin:6px 0 10px;}
+  #result table{width:100%; font-size:12px; margin-bottom:12px;}
+  #result td{padding:2px 0;} #result td:first-child{opacity:.7; text-align:left;} #result td:last-child{text-align:right; font-variant-numeric:tabular-nums;}
+  #result .btns{display:flex; gap:7px; flex-wrap:wrap; justify-content:center;}
+  #result .btns button{flex:1; min-width:104px; border:1px solid var(--line); background:rgba(255,255,255,.08); color:#fff; border-radius:8px; padding:9px; cursor:pointer; font-size:12.5px;}
+  #result .btns button.primary{background:#fff; color:#1c2430; border-color:#fff; font-weight:700;}
+  #evMsg{position:fixed; left:50%; top:46%; transform:translate(-50%,-50%); z-index:6; pointer-events:none; display:none;
+    padding:10px 22px; border-radius:10px; font-weight:700; font-size:17px; text-align:center; line-height:1.5; max-width:80vw;}
+  #evMsg.on{display:block; animation:evpop .35s ease-out;}
+  #evMsg.warn{background:rgba(214,58,47,.92); box-shadow:0 4px 20px rgba(0,0,0,.5);}
+  #evMsg.info{background:rgba(47,111,176,.92);}
+  #evMsg.good{background:rgba(46,139,87,.94);}
+  #evMsg small{display:block; font-size:11.5px; font-weight:400; opacity:.9; margin-top:3px;}
+  @keyframes evpop{from{opacity:0; transform:translate(-50%,-50%) scale(.86);} to{opacity:1; transform:translate(-50%,-50%) scale(1);}}
+  body.compact #evMsg{font-size:14px; padding:8px 16px; top:44%;}
+  body.compact #result .box{padding:12px 16px;} body.compact #result h2{font-size:18px;} body.compact #result table{margin-bottom:8px;}
+  #goal .prog{margin-top:4px; height:4px; border-radius:2px; background:rgba(255,255,255,.2); overflow:hidden; display:none;}
+  #goal .prog.on{display:block;} #goal .prog i{display:block; height:100%; width:0; background:var(--accent);}
+  #goal .step{color:var(--accent); font-weight:700;}
   #rotate{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:9; background:#0b1626; text-align:center; font-size:15px; line-height:1.8; padding:20px;}
   @media (pointer:coarse) and (orientation:portrait){ #rotate{display:flex;} }
   #loading{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:10; background:#0b1626; font-size:14px; opacity:.9;}
@@ -168,6 +201,8 @@
   <span class="tb" id="resCtl" title="描画解像度（−／＋で変更）">解像度 <button id="resDn">−</button><b id="resVal">1.0×</b><button id="resUp">＋</button></span>
   <button class="tb" id="btnWind">風</button>
   <button class="tb" id="btnSound">🔇 音</button>
+  <button class="tb" id="btnTrain" title="段階的な訓練課題に挑戦します">🎓 訓練</button>
+  <button class="tb" id="btnEvent" title="異常事態（緊急着陸・GNSS喪失・突風）を発生させます">⚡</button>
   <button class="tb" id="btnSet">設定</button>
   <button class="tb" id="btnHelp">?</button>
   <span class="spacer"></span>
@@ -186,7 +221,7 @@
   <div class="mode"><span class="badge on" id="hMode">位置安定 ON</span><span id="hTime" style="opacity:.75">0:00</span><span id="hCrash" style="opacity:.75"></span></div>
 </div>
 <div id="zoneMsg"></div>
-<div id="goal"><b id="goalT">自由飛行</b><div class="st" id="goalS">滑走路脇のパッドから離陸してみましょう。</div></div>
+<div id="goal"><b id="goalT">自由飛行</b><div class="st" id="goalS">滑走路脇のパッドから離陸してみましょう。</div><div class="prog" id="goalP"><i id="goalPi"></i></div></div>
 
 <div class="stick L" id="stL"><div class="cx"></div><div class="cy"></div><div class="lab t">スロットル ↑上昇</div><div class="lab b">↓下降</div><div class="lab l">ラダー</div><div class="lab r">→</div><div class="knob"></div></div>
 <div class="stick R" id="stR"><div class="cx"></div><div class="cy"></div><div class="lab t">エレベーター ↑前進</div><div class="lab b">↓後退</div><div class="lab l">エルロン</div><div class="lab r">→</div><div class="knob"></div></div>
@@ -214,6 +249,9 @@
   <select id="modeSel"><option value="2">モード2（左：スロットル/ラダー・右：エレベーター/エルロン）</option><option value="1">モード1（左：エレベーター/ラダー・右：スロットル/エルロン）</option></select>
   <label>最大傾斜角（機敏さ） <span class="val" id="vTilt"></span></label><input type="range" id="sTilt" min="15" max="40" step="1">
   <label>スティック感度 <span class="val" id="vExpo"></span></label><input type="range" id="sExpo" min="0" max="0.7" step="0.05">
+  <label>異常事態の発生</label>
+  <select id="evSel"><option value="off">なし</option><option value="manual">手動のみ（⚡ボタン）</option><option value="some">ときどき</option><option value="often">頻繁</option></select>
+  <label style="display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="cVoice"> 緊急指示などを音声で読み上げる</label>
   <label>描画解像度 <span class="val" id="vRes"></span></label><input type="range" id="sRes" min="0.5" max="3" step="0.25">
   <label style="display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="cAutoRes"> 動作が重いとき自動で解像度を下げる</label>
   <p>解像度は画面の物理ピクセルに対する倍率です（1.0×＝等倍、2.0×＝Retina相当、3.0×＝超高精細）。上げるほど滑らかですが端末の負荷が増えます。上部バーの「解像度 −／＋」でも変更できます。</p>
@@ -226,8 +264,32 @@
   <p><b>キーボード</b>：<kbd>W</kbd>/<kbd>S</kbd> スロットル、<kbd>A</kbd>/<kbd>D</kbd> ラダー、<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> エレベーター/エルロン、<kbd>G</kbd> 位置安定切替、<kbd>R</kbd> リセット、<kbd>F</kbd> 全画面、<kbd>1</kbd>〜<kbd>4</kbd> 視点</p>
   <p><b>視点</b>：操縦者視点は地上の立ち位置から機体を追い、距離に応じて自動ズームします（講習ガイダンスの「地上から視認する視点」）。俯瞰はドラッグで回転・ホイールで拡大縮小。</p>
   <p><b>コース</b>：実地試験のスクエア・8の字・ピルエット・異常事態（直線）・円周のゾーンを表示し、イエロー／レッドゾーンへの進入を数えます。</p>
-  <p><b>スマホ</b>：横向きにして「全画面」を押すと操作しやすくなります。</p>
+  <p><b>🎓 訓練</b>：やさしい課題から順に挑戦できます（全12課題）。合格すると★と最短時間が記録されます。課題中は <kbd>R</kbd>／リセットでやり直し。<kbd>T</kbd> で課題一覧。</p>
+  <p><b>⚡ 異常事態</b>：緊急着陸の指示・GNSS喪失（ATTIへ強制切替）・突風のいずれかが起こります（<kbd>E</kbd> キー）。設定で「ときどき／頻繁」にすると自由飛行中にランダムで発生します。</p>
+  <p><b>スマホ</b>：横向きにして「全画面」を押すと操作しやすくなります。iPhoneのSafariは全画面に対応していないため、共有ボタンから「ホーム画面に追加」すると全画面で使えます。</p>
 </div>
+
+<div class="panel" id="pTrain">
+  <h3>訓練モード <button data-close="pTrain">✕</button></h3>
+  <p id="trIntro">やさしい課題から順に挑戦します。合格すると★が付き、最短時間が記録されます。<br>課題中は<b>R キー／リセット</b>でやり直せます。</p>
+  <div id="trList"></div>
+  <p style="margin-top:10px">★★★＝レッドゾーン進入も墜落もなしでクリア／★★＝レッドゾーンなし／★＝クリア</p>
+</div>
+
+<div id="result"><div class="box">
+  <h2 id="rTitle">クリア</h2>
+  <div id="rStars" class="stars">★★★</div>
+  <p id="rWhy"></p>
+  <table id="rStat"></table>
+  <div class="btns">
+    <button id="rRetry">↺ もう一度</button>
+    <button id="rNext" class="primary">▶ 次の課題へ</button>
+    <button id="rList">課題一覧</button>
+    <button id="rQuit">訓練を終える</button>
+  </div>
+</div></div>
+
+<div id="evMsg"></div>
 
 <div id="crash"><div class="box"><h2>墜落</h2><p id="crashWhy">衝撃が大きすぎました</p><button id="crashReset">↺ リセットして続ける</button></div></div>
 <button id="zoomFix">🔍 表示を元に戻す</button>
@@ -267,7 +329,7 @@ const G=9.8, DEG=Math.PI/180;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 /* ---------- 設定（保存） ---------- */
-const CFG={ mode:2, tilt:28, expo:0.3, quality:'auto', res:Math.min(2,window.devicePixelRatio||1), autoRes:true, sound:false, view:'pilot', gnss:true,
+const CFG={ mode:2, tilt:28, expo:0.3, quality:'auto', res:Math.min(2,window.devicePixelRatio||1), autoRes:true, sound:false, view:'pilot', gnss:true, events:'manual', voice:true,
   wind:{mean:2.5, dir:0, gust:0, turb:0.15, dirVar:10} };
 try{ const sv=JSON.parse(localStorage.getItem('uasSimCfg')||'{}'); const w0={...CFG.wind}; Object.assign(CFG, sv); CFG.wind=Object.assign(w0, sv.wind||{}); for(const k in CFG.wind){ if(!Number.isFinite(CFG.wind[k])) CFG.wind[k]=w0[k]; } }catch(e){}
 function saveCfg(){ try{ localStorage.setItem('uasSimCfg', JSON.stringify(CFG)); }catch(e){} }
@@ -759,7 +821,7 @@ function hudStep(){
   let hd=Math.round(((-S.yaw/DEG)%360+360)%360)%360; $('hHdg').textContent=hd+'°';
   $('hWind').textContent=W.speed.toFixed(1)+' m/s ／ '+(Math.round(W.dirFrom)%360)+'°'+(W.gustEnv>0.5?' 突風':'');
   $('hTime').textContent=fmtT(flightTime); $('hCrash').textContent=crashes?'墜落 '+crashes+'回':'';
-  const gs=$('goalS'); if(course.judge){ gs.textContent=course.desc+'　高度'+course.alt+'｜イエロー '+zoneCount.d+'回・レッド '+zoneCount.f+'回'; }
+  const gs=$('goalS'); if(course.judge && !(window.TRAIN&&TRAIN.active)){ gs.textContent=course.desc+'　高度'+course.alt+'｜イエロー '+zoneCount.d+'回・レッド '+zoneCount.f+'回'; }
 }
 
 /* ---------- UI配線 ---------- */
@@ -847,11 +909,15 @@ window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; });
 
 /* ---------- 画面サイズへの追従・ズーム対策 ---------- */
+function syncTopH(){ const t=document.getElementById('top'); if(t) document.documentElement.style.setProperty('--topH', t.offsetHeight+'px'); }
+// 上部バーの折り返し（フォント読込・回転・ボタン増減）にも追従させる
+if(window.ResizeObserver){ try{ new ResizeObserver(syncTopH).observe(document.getElementById('top')); }catch(e){} }
 function syncCompact(){
   const h=(window.visualViewport?window.visualViewport.height:window.innerHeight);
   const w=(window.visualViewport?window.visualViewport.width:window.innerWidth);
   document.body.classList.toggle('compact', h<520 || (w<820&&h<600));
   document.body.classList.toggle('tiny', h<400);
+  requestAnimationFrame(syncTopH);
   needsResize=true;
 }
 // iOS Safari はピンチ/ダブルタップのズームを user-scalable=no では止められないため、
@@ -907,6 +973,294 @@ function loop(now){
   renderer.render(scene,camera);
 }
 requestAnimationFrame(loop);
+</script>
+
+<script>
+"use strict";
+/* ============================================================
+   訓練モード（段階的な課題）と 異常事態のランダム発生
+   ・本体の状態（S/CFG/course…）と関数（setCourse/resetState/setGnss）を利用する
+   ・判定は独立したrAFループで行い、本体の物理ループには手を入れない
+============================================================ */
+(function(){
+  const $=id=>document.getElementById(id);
+  const PI=Math.PI;
+  const pad=()=>course.pad;
+  const dPad=()=>Math.hypot(S.x-pad()[0], S.z-pad()[1]);
+  const near=(x,z,r)=>Math.hypot(S.x-x,S.z-z)<r && S.y>0.8;
+  const alt=(a,tol)=>Math.abs(S.y-a)<=tol;
+  const yawDeg=()=>((-S.yaw*180/PI)%360+360)%360;
+  const yawNear=(deg,tol)=>Math.abs(((yawDeg()-deg)%360+540)%360-180)<=tol;
+  const flying=()=>!S.onGround&&!S.crashed;
+
+  /* ---------- 条件ヘルパ ---------- */
+  function hold(cond,sec){ const f=(ctx,dt)=>{ if(cond()){ ctx.h=(ctx.h||0)+dt; ctx.p=Math.min(1,ctx.h/sec); return ctx.h>=sec; } ctx.h=0; ctx.p=0; return false; }; f.gauge=true; return f; }
+  function once(cond){ return (ctx,dt)=>!!cond(); }
+  function pirou(){ const f=(ctx,dt)=>{
+      if(!alt(3.5,0.8)||dPad()>1.5){ ctx.bad=(ctx.bad||0)+dt; }
+      if(ctx.last===undefined){ ctx.last=S.yaw; ctx.acc=0; ctx.time=0; }
+      let d=S.yaw-ctx.last; while(d>PI)d-=2*PI; while(d<-PI)d+=2*PI;
+      ctx.acc+=d; ctx.last=S.yaw; ctx.time+=dt; ctx.p=Math.min(1,Math.abs(ctx.acc)/(2*PI));
+      return Math.abs(ctx.acc)>=2*PI; }; f.gauge=true; return f; }
+
+  /* ---------- 課題（やさしい順） ---------- */
+  const CALM={mean:0,dir:0,gust:0,turb:0,dirVar:0};
+  const GUIDE={mean:2.5,dir:0,gust:0,turb:0.12,dirVar:8};
+  const BREEZY={mean:3.5,dir:0,gust:1.5,turb:0.25,dirVar:15};
+  const M=[
+   {id:'b1', grp:'① 基礎（位置安定ON・無風）', name:'離陸とホバリング', base:'free', gnss:true, wind:CALM,
+    tip:'スロットル（左スティック上下）で高度、他は触らないのがコツ。',
+    steps:[
+     {n:'離陸', ins:'スロットルを少し上げて離陸し、高度1.5mまで上昇', limit:60, f:hold(()=>alt(1.5,0.4)&&flying(),2)},
+     {n:'ホバリング', ins:'離着陸地点の上で高度1.5mを保ち5秒間ホバリング', limit:90, f:hold(()=>alt(1.5,0.4)&&dPad()<1.2,5)},
+     {n:'着陸', ins:'ゆっくり降下して離着陸地点に着陸（降下が速すぎると墜落）', limit:90, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'b2', grp:'① 基礎（位置安定ON・無風）', name:'上下の移動', base:'free', gnss:true, wind:CALM,
+    tip:'スロットルは「中央＝高度維持」。行き過ぎたら早めに戻します。',
+    steps:[
+     {n:'1.5m', ins:'高度1.5mまで上昇して3秒保持', limit:60, f:hold(()=>alt(1.5,0.4)&&dPad()<1.5,3)},
+     {n:'3.5m', ins:'高度3.5mまで上昇して3秒保持', limit:60, f:hold(()=>alt(3.5,0.4)&&dPad()<1.5,3)},
+     {n:'1.5m', ins:'高度1.5mまで下降して3秒保持', limit:60, f:hold(()=>alt(1.5,0.4)&&dPad()<1.5,3)},
+     {n:'着陸', ins:'離着陸地点に着陸', limit:60, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'b3', grp:'① 基礎（位置安定ON・無風）', name:'前後の移動', base:'free', gnss:true, wind:CALM,
+    tip:'エレベーター（右スティック上下）。止めたい位置の手前で戻すと止まります。',
+    steps:[
+     {n:'離陸', ins:'高度1.5mまで上昇', limit:60, f:hold(()=>alt(1.5,0.5)&&flying(),2)},
+     {n:'前進', ins:'高度を保ったまま前方へ3m前進', limit:60, f:once(()=>(S.z-pad()[1])<=-3&&S.y>0.8)},
+     {n:'後退', ins:'離着陸地点の上まで戻って2秒静止', limit:60, f:hold(()=>dPad()<1.0&&S.y>0.8,2)},
+     {n:'着陸', ins:'着陸', limit:60, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'b4', grp:'① 基礎（位置安定ON・無風）', name:'側方への移動（機首は前方のまま）', base:'free', gnss:true, wind:CALM,
+    tip:'エルロン（右スティック左右）だけを使い、ラダーは触らないこと。',
+    steps:[
+     {n:'離陸', ins:'高度1.5mまで上昇', limit:60, f:hold(()=>alt(1.5,0.5)&&flying(),2)},
+     {n:'右へ3m', ins:'機首を前方に向けたまま右へ3m移動', limit:60, f:once(()=>(S.x-pad()[0])>=3&&S.y>0.8&&yawNear(0,25))},
+     {n:'左へ3m', ins:'機首はそのまま、反対側（左）へ3m移動', limit:90, f:once(()=>(S.x-pad()[0])<=-3&&S.y>0.8&&yawNear(0,25))},
+     {n:'中央へ', ins:'中央に戻って2秒静止', limit:60, f:hold(()=>dPad()<1.0&&S.y>0.8,2)},
+     {n:'着陸', ins:'着陸', limit:60, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'b5', grp:'① 基礎（位置安定ON・無風）', name:'ラダー（機首の向き）', base:'free', gnss:true, wind:CALM,
+    tip:'対面（機首がこちら向き）になると左右が逆に見えます。ここに慣れるのが重要。',
+    steps:[
+     {n:'離陸', ins:'高度1.5mまで上昇', limit:60, f:hold(()=>alt(1.5,0.5)&&flying(),2)},
+     {n:'180°回転', ins:'その場で機首を180°回して（対面）3秒静止', limit:90, f:hold(()=>yawNear(180,15)&&dPad()<1.5&&S.y>0.8,3)},
+     {n:'正面へ', ins:'機首を前方（0°）に戻して3秒静止', limit:90, f:hold(()=>yawNear(0,15)&&dPad()<1.5&&S.y>0.8,3)},
+     {n:'着陸', ins:'着陸', limit:60, f:once(()=>S.onGround&&dPad()<1.5)}]},
+
+   {id:'s1', grp:'② 基本科目（位置安定ON・風2.5m/s）', name:'スクエア飛行（二等①・高度3.5m）', base:'sq2', gnss:true, wind:GUIDE,
+    tip:'各辺で機首を進行方向へ。イエローゾーンに入ったら早めに経路へ戻します。',
+    steps:[
+     {n:'離陸', ins:'高度3.5mまで上昇し5秒ホバリング', limit:90, f:hold(()=>alt(3.5,0.5)&&dPad()<1.5,5)},
+     {n:'A地点', ins:'A地点（中央・手前側）へ移動', limit:60, f:once(()=>near(0,0,1.3))},
+     {n:'B地点', ins:'右のB地点へ', limit:60, f:once(()=>near(6.5,0,1.3))},
+     {n:'C地点', ins:'奥のC地点へ', limit:60, f:once(()=>near(6.5,-5,1.3))},
+     {n:'D地点', ins:'左奥のD地点へ', limit:90, f:once(()=>near(-6.5,-5,1.3))},
+     {n:'E地点', ins:'左手前のE地点へ', limit:60, f:once(()=>near(-6.5,0,1.3))},
+     {n:'A地点', ins:'A地点へ戻る', limit:60, f:once(()=>near(0,0,1.3))},
+     {n:'着陸', ins:'H地点に戻って着陸', limit:90, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'s2', grp:'② 基本科目（位置安定ON・風2.5m/s）', name:'8の字飛行（二等②・高度1.5m）', base:'fig8b', gnss:true, wind:GUIDE,
+    tip:'2つの円の接点（中央）を必ず通ります。機首は常に進行方向へ。',
+    steps:[
+     {n:'離陸', ins:'高度1.5mまで上昇し5秒ホバリング', limit:90, f:hold(()=>alt(1.5,0.4)&&dPad()<1.2,5)},
+     {n:'右の円', ins:'右の円を回る（右端まで）', limit:90, f:once(()=>S.x>=4.3&&Math.abs(S.z)<2.2&&S.y>0.8)},
+     {n:'中央へ', ins:'2つの円の接点（中央）を通過', limit:60, f:once(()=>Math.abs(S.x)<1.0&&Math.abs(S.z)<1.6&&S.y>0.8)},
+     {n:'左の円', ins:'続けて左の円を回る（左端まで）', limit:90, f:once(()=>S.x<=-4.3&&Math.abs(S.z)<2.2&&S.y>0.8)},
+     {n:'中央へ', ins:'中央へ戻って8の字1周完了', limit:60, f:once(()=>Math.abs(S.x)<1.0&&Math.abs(S.z)<1.6&&S.y>0.8)},
+     {n:'着陸', ins:'H地点に着陸', limit:90, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'s3', grp:'② 基本科目（位置安定ON・風2.5m/s）', name:'異常事態における飛行（二等③）', base:'line2', gnss:false, wind:GUIDE,
+    tip:'この科目は位置安定OFF。機首は前方に固定したまま「横に」動きます。',
+    steps:[
+     {n:'離陸', ins:'位置安定OFFで離陸し、高度3.5mで5秒ホバリング', limit:90, f:hold(()=>alt(3.5,0.5)&&dPad()<1.5,5)},
+     {n:'B地点へ', ins:'機首を前方に固定したまま右（B地点）へ側方移動', limit:90, f:once(()=>S.x>=6.0&&yawNear(0,25)&&S.y>0.8)},
+     {n:'E地点へ', ins:'そのまま左（E地点）へ側方移動', limit:120, f:once(()=>S.x<=-6.0&&yawNear(0,25)&&S.y>0.8)},
+     {n:'緊急着陸', ins:'講師の指示。最短の経路でH地点へ緊急着陸', limit:60, ev:'emg', f:once(()=>S.onGround&&dPad()<1.5)}]},
+
+   {id:'a1', grp:'③ 上級（位置安定OFF＝ATTI）', name:'ATTIホバリング（風の中で位置を保つ）', base:'free', gnss:false, wind:GUIDE,
+    tip:'風で流されます。流された方向と逆に当て舵を「早め・小さく」。',
+    steps:[
+     {n:'離陸', ins:'位置安定OFF。高度1.5mまで上昇', limit:60, f:hold(()=>alt(1.5,0.5)&&flying(),2)},
+     {n:'位置を保つ', ins:'当て舵をあてて、半径1m以内・高度1.5mを10秒保持', limit:150, f:hold(()=>dPad()<1.0&&alt(1.5,0.5),10)},
+     {n:'着陸', ins:'離着陸地点に着陸', limit:90, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'a2', grp:'③ 上級（位置安定OFF＝ATTI）', name:'高度変化を伴うスクエア飛行（一等①）', base:'sq1', gnss:false, wind:GUIDE,
+    tip:'B→Cで1.5→3.5mへ上昇、D→Eで下降。高度と位置を同時に合わせます。',
+    steps:[
+     {n:'離陸', ins:'位置安定OFFで離陸し、高度1.5mで5秒ホバリング', limit:90, f:hold(()=>alt(1.5,0.4)&&dPad()<1.2,5)},
+     {n:'A地点', ins:'A地点へ（高度1.5m）', limit:60, f:once(()=>near(0,0,1.4))},
+     {n:'B地点', ins:'B地点へ（高度1.5m）', limit:60, f:once(()=>near(6.5,0,1.4))},
+     {n:'C地点', ins:'上昇しながらC地点へ（高度3.5m）', limit:90, f:once(()=>near(6.5,-5,1.4)&&alt(3.5,0.8))},
+     {n:'D地点', ins:'高度3.5mを保ってD地点へ', limit:90, f:once(()=>near(-6.5,-5,1.4)&&alt(3.5,0.8))},
+     {n:'E地点', ins:'下降しながらE地点へ（高度1.5m）', limit:90, f:once(()=>near(-6.5,0,1.4)&&alt(1.5,0.8))},
+     {n:'A地点', ins:'A地点へ戻る', limit:60, f:once(()=>near(0,0,1.4))},
+     {n:'着陸', ins:'H地点に着陸', limit:90, f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'a3', grp:'③ 上級（位置安定OFF＝ATTI）', name:'緊急着陸を伴う8の字飛行（一等③）', base:'fig8e', gnss:false, wind:GUIDE,
+    tip:'8の字を続けていると緊急着陸の指示が入ります。慌てず最短経路で。',
+    steps:[
+     {n:'離陸', ins:'位置安定OFFで離陸し、高度1.5mで5秒ホバリング', limit:90, f:hold(()=>alt(1.5,0.4)&&dPad()<1.2,5)},
+     {n:'右の円', ins:'右の円を回る', limit:90, f:once(()=>S.x>=4.3&&Math.abs(S.z)<2.2&&S.y>0.8)},
+     {n:'中央へ', ins:'中央を通過', limit:60, f:once(()=>Math.abs(S.x)<1.0&&Math.abs(S.z)<1.6&&S.y>0.8)},
+     {n:'左の円', ins:'左の円を回る', limit:90, f:once(()=>S.x<=-4.3&&Math.abs(S.z)<2.2&&S.y>0.8)},
+     {n:'緊急着陸', ins:'試験員の指示。最短の経路でH地点へ緊急着陸', limit:60, ev:'emg', f:once(()=>S.onGround&&dPad()<1.5)}]},
+   {id:'a4', grp:'③ 上級（位置安定OFF＝ATTI）', name:'ピルエットホバリング（一等②）', base:'pir1', gnss:false, wind:GUIDE,
+    tip:'半径1.5mの円から出ないように。ゆっくり一定の速さで回します（目安20秒）。',
+    steps:[
+     {n:'離陸', ins:'高度3.5mまで上昇して静止', limit:90, f:hold(()=>alt(3.5,0.5)&&dPad()<1.2,3)},
+     {n:'1回転', ins:'半径1.5m以内・高度3.5mを保ち、約20秒で1回転', limit:120, f:pirou()},
+     {n:'着陸', ins:'着陸', limit:90, f:once(()=>S.onGround&&dPad()<1.5)}]},
+  ];
+
+  /* ---------- 音声・効果音 ---------- */
+  function say(t){ if(!CFG.voice||!('speechSynthesis' in window)) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='ja-JP'; u.rate=1.1; speechSynthesis.speak(u); }catch(e){} }
+  function beep(f,d,v){ if(!snd.ctx) return; try{ const o=snd.ctx.createOscillator(), g=snd.ctx.createGain(); o.type='sine'; o.frequency.value=f;
+    g.gain.value=0.0001; o.connect(g); g.connect(snd.ctx.destination); const t0=snd.ctx.currentTime;
+    g.gain.exponentialRampToValueAtTime(v||0.12,t0+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t0+d); o.start(t0); o.stop(t0+d+0.05); }catch(e){} }
+
+  /* ---------- 画面中央のお知らせ ---------- */
+  let evT=0;
+  function banner(text,kind,sec,sub){ const e=$('evMsg'); e.className='on '+(kind||'info');
+    e.innerHTML=text+(sub?'<small>'+sub+'</small>':''); evT=sec||2.5; }
+  function bannerStep(dt){ if(evT>0){ evT-=dt; if(evT<=0) $('evMsg').className=''; } }
+
+  /* ---------- 異常事態 ---------- */
+  const EV={t:0, next:30, act:null, at:0, restore:null};
+  EV.clear=function(){ if(EV.restore){ try{EV.restore();}catch(e){} EV.restore=null; } EV.act=null; EV.at=0; };
+  EV.fire=function(type){
+    if(S.crashed) return;
+    type=type||['emg','gnss','gust'][Math.floor(Math.random()*3)];
+    EV.clear(); EV.act=type; EV.at=0;
+    if(type==='emg'){ banner('⚠ 緊急着陸','warn',3.2,'最短の経路で離着陸地点へ着陸してください'); say('緊急着陸'); beep(880,0.18); setTimeout(()=>beep(880,0.18),220); }
+    if(type==='gnss'){ const was=CFG.gnss; setGnss(false);
+      banner('⚠ GNSS喪失','warn',3.2,'位置安定機能が失われました（ATTI）。当て舵で位置を保ってください'); say('ジーエヌエスエス、ロスト'); beep(320,0.3);
+      EV.restore=()=>{ if(was) setGnss(true); }; }
+    if(type==='gust'){ const w={...CFG.wind}; CFG.wind.gust=Math.max(3,w.gust+3); CFG.wind.turb=Math.min(1,w.turb+0.35); CFG.wind.mean=w.mean+1.5;
+      banner('⚠ 突風','warn',3,'風が強まっています'); say('突風'); beep(240,0.35);
+      EV.restore=()=>{ CFG.wind.gust=w.gust; CFG.wind.turb=w.turb; CFG.wind.mean=w.mean; if($('wMean')) syncWindUI(); }; }
+  };
+  function syncWindUI(){ ['wMean:mean','wDir:dir','wGust:gust','wTurb:turb','wVar:dirVar'].forEach(s=>{ const [id,k]=s.split(':'); const el=$(id); if(el) el.value=CFG.wind[k]; }); }
+  EV.step=function(dt){
+    if(EV.act){ EV.at+=dt;
+      if(EV.act==='emg'){
+        if(S.onGround&&dPad()<1.5&&!S.crashed){ banner('✅ 緊急着陸 成功','good',2.5,(EV.at).toFixed(1)+'秒'); beep(1200,0.14); EV.act=null; }
+        else if(EV.at>45){ banner('⏱ 緊急着陸 時間超過','warn',2.5); EV.act=null; }
+      }
+      if(EV.act==='gnss'&&EV.at>30){ EV.clear(); banner('GNSS復帰','info',2); }
+      if(EV.act==='gust'&&EV.at>9){ EV.clear(); banner('風が収まりました','info',1.8); }
+    }
+    // ランダム発生（自由飛行中のみ・訓練中は課題側の指示を優先）
+    const mode=CFG.events||'manual';
+    if(mode==='off'||mode==='manual'||TR.active||EV.act) return;
+    if(!flying()||S.y<1) return;
+    EV.t+=dt;
+    if(EV.t>=EV.next){ EV.t=0; EV.next=(mode==='often')?(20+Math.random()*25):(45+Math.random()*45); EV.fire(); }
+  };
+
+  /* ---------- 訓練 ---------- */
+  const TR={active:false, mi:0, si:0, ctx:{}, t:0, st:0, red0:0, yel0:0, cr0:0, internal:false};
+  let BEST={}; try{ BEST=JSON.parse(localStorage.getItem('uasSimTrain')||'{}'); }catch(e){}
+  const saveBest=()=>{ try{ localStorage.setItem('uasSimTrain',JSON.stringify(BEST)); }catch(e){} };
+  const fmt=s=>{ s=Math.max(0,Math.floor(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+
+  TR.start=function(i){
+    TR.mi=i; const m=M[i];
+    TR.internal=true; setCourse(m.base); TR.internal=false;
+    setGnss(m.gnss);
+    if(m.wind){ Object.assign(CFG.wind,m.wind); syncWindUI(); saveCfg(); }
+    TR.active=true; TR.si=0; TR.ctx={}; TR.t=0; TR.st=0;
+    TR.red0=zoneCount.f; TR.yel0=zoneCount.d; TR.cr0=crashes;
+    $('pTrain').classList.remove('open'); $('result').className='';
+    $('btnTrain').textContent='🎓 訓練中'; $('btnTrain').classList.add('on'); $('goalP').classList.add('on');
+    banner('課題 '+(i+1)+'：'+m.name,'info',2.6, m.tip);
+    TR.render();
+  };
+  TR.stop=function(){ TR.active=false; $('goalP').classList.remove('on'); $('btnTrain').textContent='🎓 訓練'; $('btnTrain').classList.remove('on');
+    $('result').className=''; EV.clear(); $('goalT').textContent=course.goal; $('goalS').textContent=course.desc; };
+  TR.restart=function(){ TR.start(TR.mi); resetState(); };
+
+  TR.render=function(){
+    if(!TR.active) return;
+    const m=M[TR.mi], st=m.steps[TR.si];
+    $('goalT').textContent='🎓 '+(TR.mi+1)+'. '+m.name+'（'+(TR.si+1)+'/'+m.steps.length+'）';
+    const left=st.limit?Math.max(0,st.limit-TR.st):null;
+    $('goalS').innerHTML='<span class="step">'+st.n+'</span>：'+st.ins+(left!==null?'　残り'+Math.ceil(left)+'秒':'');
+  };
+  TR.step=function(dt){
+    if(!TR.active) return;
+    const m=M[TR.mi], st=m.steps[TR.si];
+    TR.t+=dt; TR.st+=dt;
+    if(S.crashed){ TR.finish(false,'墜落しました'); return; }
+    if(st.limit && TR.st>st.limit){ TR.finish(false,'「'+st.n+'」の制限時間（'+st.limit+'秒）を超えました'); return; }
+    let done=false; try{ done=st.f(TR.ctx,dt); }catch(e){ done=false; }
+    $('goalPi').style.width=Math.round((TR.ctx.p||0)*100)+'%';
+    if(done){
+      if(TR.si>=m.steps.length-1){ TR.finish(true); return; }
+      TR.si++; TR.ctx={}; TR.st=0; beep(1050,0.11);
+      const ns=m.steps[TR.si];
+      banner('✓ '+st.n+' 完了','good',1.3, '次：'+ns.n);
+      if(ns.ev==='emg') setTimeout(()=>{ if(TR.active) EV.fire('emg'); }, 500);
+      TR.render();
+    } else if(Math.floor(TR.t*2)%2===0) TR.render();
+  };
+  TR.finish=function(ok,why){
+    const m=M[TR.mi];
+    const red=zoneCount.f-TR.red0, yel=zoneCount.d-TR.yel0, cr=crashes-TR.cr0;
+    let stars=0;
+    if(ok){ stars=(red===0&&cr===0)?3:(red===0?2:1);
+      const b=BEST[m.id]||{}; if(!b.stars||stars>b.stars) b.stars=stars;
+      if(!b.best||TR.t<b.best) b.best=TR.t; b.cleared=true; BEST[m.id]=b; saveBest(); beep(1320,0.5,0.1); say('クリア'); }
+    else { beep(200,0.5,0.12); }
+    $('rTitle').textContent=ok?'クリア！':'やり直し';
+    $('rStars').textContent=ok?'★★★☆☆☆'.slice(3-stars,6-stars):'';
+    $('rWhy').textContent=ok?(m.tip||''):(why||'');
+    $('rStat').innerHTML=
+      '<tr><td>所要時間</td><td>'+fmt(TR.t)+'</td></tr>'+
+      '<tr><td>レッドゾーン進入</td><td>'+red+' 回</td></tr>'+
+      '<tr><td>イエローゾーン進入</td><td>'+yel+' 回</td></tr>'+
+      '<tr><td>墜落</td><td>'+cr+' 回</td></tr>'+
+      (BEST[m.id]&&BEST[m.id].best?'<tr><td>自己ベスト</td><td>'+fmt(BEST[m.id].best)+'</td></tr>':'');
+    $('rNext').style.display=(ok&&TR.mi<M.length-1)?'':'none';
+    $('result').className='on '+(ok?'ok':'ng');
+    TR.active=false; $('goalP').classList.remove('on'); $('btnTrain').classList.remove('on'); $('btnTrain').textContent='🎓 訓練';
+  };
+  TR.list=function(){
+    const box=$('trList'); box.innerHTML=''; let g=null;
+    M.forEach((m,i)=>{
+      if(m.grp!==g){ g=m.grp; const h=document.createElement('div'); h.className='g'; h.textContent=g; box.appendChild(h); }
+      const b=document.createElement('button'); const st=BEST[m.id];
+      b.className=st&&st.cleared?'done':'';
+      b.innerHTML='<span class="st">'+(st&&st.cleared?('★★★☆☆☆'.slice(3-st.stars,6-st.stars)+' '+fmt(st.best)):'未挑戦')+'</span>'+
+        (i+1)+'. '+m.name+'<small>'+m.steps.length+'ステップ｜'+(m.gnss?'位置安定ON':'位置安定OFF')+'｜風 '+m.wind.mean+'m/s</small>';
+      b.onclick=()=>TR.start(i);
+      box.appendChild(b);
+    });
+  };
+  window.TRAIN=TR;
+
+  /* ---------- 本体の関数を包んで連動 ---------- */
+  const _reset=window.resetState;
+  window.resetState=function(){ _reset(); EV.clear();
+    if(TR.active){ TR.si=0; TR.ctx={}; TR.t=0; TR.st=0; TR.red0=zoneCount.f; TR.yel0=zoneCount.d; TR.cr0=crashes; TR.render(); } };
+  const _setCourse=window.setCourse;
+  window.setCourse=function(k){ if(TR.active&&!TR.internal) TR.stop(); _setCourse(k); };
+
+  /* ---------- UI ---------- */
+  $('btnTrain').onclick=()=>{ TR.list(); ['pWind','pSet','pHelp'].forEach(p=>$(p).classList.remove('open')); $('pTrain').classList.toggle('open'); };
+  $('btnEvent').onclick=()=>{ if((CFG.events||'manual')==='off'){ banner('異常事態は「なし」に設定されています','info',2); return; } EV.fire(); };
+  $('rRetry').onclick=()=>{ $('result').className=''; TR.restart(); };
+  $('rNext').onclick=()=>{ $('result').className=''; TR.start(Math.min(M.length-1,TR.mi+1)); resetState(); };
+  $('rList').onclick=()=>{ $('result').className=''; TR.stop(); TR.list(); $('pTrain').classList.add('open'); };
+  $('rQuit').onclick=()=>{ $('result').className=''; TR.stop(); };
+  $('evSel').value=CFG.events||'manual'; $('evSel').onchange=()=>{ CFG.events=$('evSel').value; saveCfg(); };
+  $('cVoice').checked=(CFG.voice!==false); $('cVoice').onchange=()=>{ CFG.voice=$('cVoice').checked; saveCfg(); };
+  window.addEventListener('keydown',e=>{
+    if(e.metaKey||e.ctrlKey||e.altKey) return; const tg=e.target; if(tg&&/INPUT|SELECT|TEXTAREA/.test(tg.tagName)) return;
+    if(e.key==='e'||e.key==='E') $('btnEvent').click();
+    if(e.key==='t'||e.key==='T') $('btnTrain').click();
+  });
+
+  /* ---------- 判定ループ ---------- */
+  let prev=performance.now();
+  (function tick(now){
+    requestAnimationFrame(tick);
+    const dt=Math.min(0.05,(now-prev)/1000); prev=now;
+    bannerStep(dt); EV.step(dt); TR.step(dt);
+  })(performance.now());
+})();
 </script>
 </body>
 </html>
