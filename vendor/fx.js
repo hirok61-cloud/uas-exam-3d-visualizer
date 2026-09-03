@@ -105,7 +105,7 @@
     const seg=CFG.seg?CFG.seg():null;
     const p=CFG.pos?CFG.pos():null;
     const sc=CFG.scale?CFG.scale():1;
-    if(seg&&p&&typeof playing!=='undefined'&&playing){
+    if(seg&&p&&((typeof playing!=='undefined'&&playing)||(window.PILOT&&window.PILOT.active))){
       const near=p.y<1.1*sc;
       let emit=false, spread=0.6*sc, drift=[0,0];
       if((seg.t==='takeoff'||seg.t==='land')&&near) emit=true;

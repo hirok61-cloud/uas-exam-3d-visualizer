@@ -225,6 +225,7 @@
   /* ---------- キーボード（Space=再生/停止, ←→=±5秒, F=全画面, Esc=疑似全画面終了） ---------- */
   window.addEventListener('keydown',e=>{
     if(e.metaKey||e.ctrlKey||e.altKey) return;
+    if(window.PILOT&&window.PILOT.active) return;   // 操縦体験中は操縦キーを優先
     const tg=e.target;
     if(tg && (tg.tagName==='INPUT'||tg.tagName==='SELECT'||tg.tagName==='TEXTAREA'||tg.tagName==='BUTTON')) return;
     if(e.code==='Space'){ e.preventDefault(); togglePlay(); }
