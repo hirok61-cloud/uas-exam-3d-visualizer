@@ -134,6 +134,28 @@
     background:rgba(12,22,40,.85); padding:3px 10px; border-radius:5px 5px 0 0;
     display:none; pointer-events:none;
   }
+  /* 操縦体験モード */
+  #pilotUI{position:absolute; inset:0; pointer-events:none; display:none;}
+  #stageBox.pilot #pilotUI{display:block;}
+  #pilotHud{position:absolute; top:12px; left:50%; transform:translateX(-50%); max-width:94%;
+    background:rgba(12,22,40,.86); color:#fff; border-radius:8px; padding:7px 12px; font-size:12px;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; pointer-events:auto; backdrop-filter:blur(3px);}
+  #pilotHud b{color:#ffd76a;}
+  #pilotHud .z{padding:1px 8px; border-radius:4px; font-weight:700;}
+  #pilotHud .z.d{background:#c79a00;} #pilotHud .z.f{background:var(--danger);}
+  #pilotHud button{font:inherit; border:0; border-radius:6px; padding:4px 10px; cursor:pointer; background:rgba(255,255,255,.18); color:#fff;}
+  #pilotHud label{display:inline-flex; align-items:center; gap:4px; font-size:11px;}
+  .pstick{position:absolute; bottom:48px; width:118px; height:118px; border-radius:18px; pointer-events:auto; touch-action:none;
+    background:rgba(12,22,40,.55); border:1px solid rgba(255,255,255,.28); cursor:grab;}
+  .pstick.L{left:14px;} .pstick.R{right:14px;}
+  .pstick .knob{position:absolute; left:50%; top:50%; width:40px; height:40px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#8fa4c4,#2b3648 70%); transform:translate(-50%,-50%); box-shadow:0 2px 6px rgba(0,0,0,.5);}
+  .pstick .lab{position:absolute; left:0; width:100%; font-size:9.5px; color:rgba(255,255,255,.8); text-align:center; line-height:1.2;}
+  .pstick .lab.t{top:4px;} .pstick .lab.b{bottom:4px;}
+  #pilotKeys{position:absolute; bottom:52px; left:50%; transform:translateX(-50%); font-size:10.5px; color:#fff;
+    text-shadow:0 1px 2px #000; pointer-events:none; text-align:center; max-width:52%;}
+  #stageBox.pilot #hud{display:none;}
+  @media (max-width:760px){ #pilotKeys{display:none;} .pstick{width:104px; height:104px;} }
   #altTag{
     position:absolute; top:0; left:0; display:none; pointer-events:none;
     font-size:11px; font-weight:700; color:#1c2430; background:rgba(255,255,255,.88);
@@ -233,6 +255,7 @@
     <div class="playbar">
       <button class="primary" id="btnPlay" onclick="togglePlay()">▶ 再生</button>
       <button onclick="resetAnim()">⟲ 最初から</button>
+      <button id="btnPilot" onclick="PILOT.toggle()" title="仮想スティック／キーボードで実際に操縦してコースを飛びます">🎮 操縦体験</button>
       <label>速度
         <select id="speed" onchange="SPEED=parseFloat(this.value)">
           <option value="0.5">0.5×</option>
@@ -290,6 +313,19 @@
     <div id="altTag"></div>
     <div id="emg">⚠ 緊急着陸の口頭指示</div>
     <div id="pipLabel">機体カメラ映像（目標物をカメラで確認）</div>
+    <div id="pilotUI">
+      <div id="pilotHud">
+        <b id="pilotGoal">－</b>
+        <span id="pilotStats">－</span>
+        <span id="pilotZone"></span>
+        <label><input type="checkbox" id="pilotGhost" checked> 模範経路のゴースト</label>
+        <button onclick="PILOT.reset()">↺ やり直し</button>
+        <button onclick="PILOT.toggle()">✕ 終了</button>
+      </div>
+      <div class="pstick L" id="pstickL"><div class="lab t" id="pstLT"></div><div class="knob"></div><div class="lab b" id="pstLB"></div></div>
+      <div class="pstick R" id="pstickR"><div class="lab t" id="pstRT"></div><div class="knob"></div><div class="lab b" id="pstRB"></div></div>
+      <div id="pilotKeys">キーボード：W/S＝スロットル　A/D＝ラダー　↑↓＝エレベーター　←→＝エルロン　R＝やり直し</div>
+    </div>
     <div id="legend">
       <span><i style="background:#f2b705"></i>イエローゾーン（進入→経路復帰の指導）</span>
       <span><i style="background:#d63a2f"></i>レッドゾーン（進入→講師等が操縦を代替）</span>
@@ -1684,12 +1720,13 @@ function loop(now){
       document.getElementById('hudPhase').textContent='実地講習の再現を終了（'+sc.name+'）';
     }
   }
-  const p=samplePose(sc,t);
+  const p=(window.PILOT&&PILOT.active)?PILOT.pose(dt):samplePose(sc,t);
   const spec=vehicles[curVehicle];
   spec.group.position.set(p.x,p.y,p.z);
 
   let yawMoving=false;
-  if(curVehicle==='plane'){
+  if(curVehicle==='plane' && window.PILOT && PILOT.active){ PILOT.applyPlane(spec); yawMoving=true; }
+  else if(curVehicle==='plane'){
     const p2=samplePose(sc,Math.min(total,t+0.06));
     const vx=(p2.x-p.x)/0.06, vy=(p2.y-p.y)/0.06, vz=(p2.z-p.z)/0.06;
     const hs=Math.hypot(vx,vz);
@@ -1720,7 +1757,7 @@ function loop(now){
       else yawCur=p.yawT;
     }
     spec.group.rotation.y=yawCur;
-    if(playing){
+    if(playing||(window.PILOT&&PILOT.active)){
       if(curVehicle==='multi'){
         const rs=spec.aux.rotors;
         for(let i=0;i<rs.length;i++) rs[i].rotation.z+=dt*(30+i*3);
@@ -1752,7 +1789,7 @@ function loop(now){
   updateHUD(sc,p,t,dt);
   updateCamera(dt);
 
-  if(!(playing || dragging || forceRender || zoneAnimating || yawMoving || !camSettled)) return;
+  if(!(playing || dragging || forceRender || zoneAnimating || yawMoving || !camSettled || (window.PILOT&&PILOT.active))) return;
   forceRender=false;
 
   renderer.setViewport(0,0,w,h);
@@ -1949,7 +1986,252 @@ window.PLAYER_CFG={
     return sc.steps.map((s,i)=>stepStartTime(sc,i)/tt); }
 };
 </script>
-<script src="vendor/player-extras.js?v=3"></script>
+<script src="vendor/player-extras.js?v=4"></script>
+<script>
+"use strict";
+/* ---------- 操縦体験モード ----------
+   送信機（仮想スティック／キーボード）で実際に機体を操縦し、各科目のコースをゾーン判定付きで飛ぶ。
+   物理は簡易モデル（速度追従・ヨー率・上昇率）。模範経路はゴースト機として同時再生する。
+   エンジンとの接点: PILOT.pose(dt) が姿勢を返し、PILOT.applyPlane(spec) が飛行機の姿勢を書く。 */
+window.PILOT=(function(){
+  const P={active:false};
+  const CRAFT={
+    multi:{vmax:4, vv:1.6, yawR:1.6, mode:2, hold:false},
+    heli: {vmax:6, vv:2.5, yawR:1.0, mode:1, hold:true},
+    plane:{vmax:24, mode:1, hold:true, ratchet:true}
+  };
+  const GOAL={
+    mfig8:'A地点の円（直径5m）を8の字に周回しよう（高度1.5m・機首は進行方向）',
+    mline:'E–A–Bの直線を機首前方固定のまま往復しよう（高度3.5m）',
+    hhigh:'A地点上空50m→B地点上空100mへ低速で上昇し、旋回しながら降りてこよう',
+    hline:'E–A–Bを機首前方固定のまま側方移動で往復しよう（高度5m）',
+    pfig8:'向かい風（＋x方向）へ離陸→上昇旋回→周回→8の字。区画線（±65°/±70°）の内側で'
+  };
+  const START={mfig8:[0,0], mline:[0,-2.5], hhigh:[0,0], hline:[0,-10], pfig8:[-45,-30]};
+  const S={};                      // 機体状態
+  const st={L:{x:0,y:0}, R:{x:0,y:0}};
+  const keys={};
+  let ghost=null, ghostV=null, ghostT=0, lastSc=null, timer=0, trailT=0;
+  const stats={d:0,f:0,dT:0,fT:0,zone:'ok'};
+  const $=id=>document.getElementById(id);
+
+  function craft(){ return CRAFT[curVehicle]; }
+  function course(){ return curScenario().course; }
+
+  /* ---- ゾーン判定（コース別・簡易） ---- */
+  function judge(c,x,z,y){
+    if(y<0.3) return 'ok';
+    if(c==='mfig8'){ const d=Math.min(Math.abs(Math.hypot(x-2.5,z)-2.5), Math.abs(Math.hypot(x+2.5,z)-2.5)); return d>2.5?'f':(d>1.5?'d':'ok'); }
+    if(c==='mline'){ const d=Math.hypot(Math.max(0,Math.abs(x)-6.5), z); return d>2.5?'f':(d>1.5?'d':'ok'); }
+    if(c==='hline'){ const d=Math.hypot(Math.max(0,Math.abs(x)-10), z); return d>6?'f':(d>2.5?'d':'ok'); }
+    if(c==='pfig8'){ if(z>-1) return 'ok'; const a=Math.abs(Math.atan2(x,-z))*180/Math.PI; return a>70?'f':(a>65?'d':'ok'); }
+    return 'ok';
+  }
+
+  /* ---- 状態の初期化 ---- */
+  function resetState(){
+    const c=course(), s0=START[c]||[0,0];
+    S.x=s0[0]; S.z=s0[1]; S.y=0; S.vx=0; S.vz=0; S.vy=0; S.speed=0; S.bank=0; S.pitch=0; S.onGround=true;
+    S.yaw=(curVehicle==='plane')?-Math.PI/2:0;
+    st.L.x=st.L.y=st.R.x=st.R.y=0;
+    S.thrRaw=-1;
+    if(craft().hold){ (craft().mode===1?st.R:st.L).y=-1; }   // 保持式スロットルは最下(停止)から
+    stats.d=stats.f=stats.dT=stats.fT=0; stats.zone='ok';
+    timer=0; trailT=0; ghostT=0;
+    clearTrail();
+    const sc=curScenario(); ghostT=0;
+    buildGhost();
+    $('pilotGoal').textContent=GOAL[c]||'自由に飛んでみよう';
+    setStickLabels();
+  }
+  function buildGhost(){
+    if(ghost){ scene.remove(ghost); ghost=null; }
+    const base=vehicles[curVehicle].group;
+    ghost=base.clone(true);
+    ghost.traverse(o=>{ if(o.material){ o.material=o.material.clone(); o.material.transparent=true; o.material.opacity=0.30; o.material.depthWrite=false; } });
+    ghost.visible=$('pilotGhost').checked; ghostV=curVehicle;
+    scene.add(ghost);
+  }
+  function setStickLabels(){
+    const m=craft().mode;
+    const L=(m===2)?['スロットル','ラダー']:['エレベーター','ラダー'];
+    const R=(m===2)?['エレベーター','エルロン']:['スロットル','エルロン'];
+    $('pstLT').textContent='↑ '+L[0]; $('pstLB').textContent='← '+L[1]+' →';
+    $('pstRT').textContent='↑ '+R[0]+(craft().hold?'（保持）':''); $('pstRB').textContent='← '+R[1]+' →';
+  }
+
+  /* ---- 入力（スティック値 → 機能チャンネル） ---- */
+  function channels(){
+    const m=craft().mode;
+    return (m===2)? {thr:st.L.y, rud:st.L.x, elev:st.R.y, ail:st.R.x}
+                  : {thr:st.R.y, rud:st.L.x, elev:st.L.y, ail:st.R.x};
+  }
+  function keyDrive(dt){
+    // キーボードは「機能」ごと。保持式スロットルはW/Sで増減、ばね軸はキーを離すと中央へ
+    const m=craft().mode, hold=craft().hold;
+    const thrS=(m===2)?st.L:st.R, elevS=(m===2)?st.R:st.L;
+    const tgt=(k1,k2)=>(keys[k1]?1:0)-(keys[k2]?1:0);
+    const thrSide=(m===2)?'L':'R';
+    if(hold){
+      const d=tgt('w','s');
+      if(d && !drag[thrSide]){
+        S.thrRaw=Math.max(-1,Math.min(1,S.thrRaw+d*1.2*dt));
+        thrS.y=craft().ratchet ? Math.round(S.thrRaw*3)/3 : S.thrRaw;   // ラチェットは7段階
+      }
+    }
+    else { const d=tgt('w','s'); if(d||!drag.L) thrS.y+=(d-thrS.y)*Math.min(1,dt*8); }
+    const r=tgt('d','a'); if(r||!drag.L) st.L.x+=(r-st.L.x)*Math.min(1,dt*8);
+    const e=tgt('arrowup','arrowdown'); if(e||!(drag.L&&m===1)&&!(drag.R&&m===2)) elevS.y+=(e-elevS.y)*Math.min(1,dt*8);
+    const a=tgt('arrowright','arrowleft'); if(a||!drag.R) st.R.x+=(a-st.R.x)*Math.min(1,dt*8);
+    drawSticks();
+  }
+
+  /* ---- 仮想スティック ---- */
+  const drag={L:false,R:false};
+  function bindStick(side){
+    const pad=$('pstick'+side), knob=pad.querySelector('.knob');
+    let grab={dx:0,dy:0};
+    function lim(){ return (pad.clientWidth-42)/2; }
+    function pos(e){ const r=pad.getBoundingClientRect(), L=lim(); return {x:(e.clientX-(r.left+r.width/2))/L, y:-(e.clientY-(r.top+r.height/2))/L}; }
+    pad.addEventListener('pointerdown',e=>{ try{pad.setPointerCapture(e.pointerId);}catch(err){} drag[side]=true;
+      const p=pos(e), s=st[side]; const near=Math.hypot(p.x-s.x,p.y-s.y)<0.4; grab=near?{dx:p.x-s.x,dy:p.y-s.y}:{dx:0,dy:0}; move(e); });
+    function move(e){ if(!drag[side]) return; const p=pos(e), s=st[side];
+      s.x=Math.max(-1,Math.min(1,p.x-grab.dx)); s.y=Math.max(-1,Math.min(1,p.y-grab.dy));
+      const m=craft().mode, isThr=(m===2&&side==='L')||(m===1&&side==='R');
+      if(isThr&&craft().hold){ if(craft().ratchet) s.y=Math.round(s.y*3)/3; S.thrRaw=s.y; } }
+    pad.addEventListener('pointermove',move);
+    const up=()=>{ if(!drag[side]) return; drag[side]=false;
+      const s=st[side], m=craft().mode, isThr=(m===2&&side==='L')||(m===1&&side==='R');
+      s.x=0; if(!(isThr&&craft().hold)) s.y=0; };
+    pad.addEventListener('pointerup',up); pad.addEventListener('pointercancel',up);
+    P['_knob'+side]=knob;
+  }
+  function drawSticks(){
+    ['L','R'].forEach(side=>{ const k=P['_knob'+side]; if(!k) return; const pad=k.parentElement; const L=(pad.clientWidth-42)/2;
+      k.style.transform='translate(-50%,-50%) translate('+(st[side].x*L)+'px,'+(-st[side].y*L)+'px)'; });
+  }
+
+  /* ---- 物理 ---- */
+  function step(dt){
+    const c=channels(), cr=craft();
+    const f=[-Math.sin(S.yaw), -Math.cos(S.yaw)], r=[Math.cos(S.yaw), -Math.sin(S.yaw)];
+    if(curVehicle==='plane'){
+      const thr01=(c.thr+1)/2, sT=thr01*cr.vmax;
+      S.speed+=(sT-S.speed)*Math.min(1,dt*0.9);
+      if(S.onGround){
+        S.x+=S.speed*f[0]*dt; S.z+=S.speed*f[1]*dt; S.y=0;
+        S.yaw+=c.rud*0.9*dt*Math.min(1,S.speed/cr.vmax*2); S.bank*=0.9; S.pitch*=0.9;
+        if(S.speed>0.55*cr.vmax && c.elev>0.15){ S.onGround=false; S.vy=2; }
+      }else{
+        S.bank+=(c.ail*0.85-S.bank)*Math.min(1,dt*3);
+        const turn=9.8*Math.tan(S.bank)/Math.max(S.speed,6);
+        S.yaw-=turn*dt;
+        const climbT=c.elev*7*(S.speed/cr.vmax)-(S.speed<0.45*cr.vmax?4:0);
+        S.vy+=(climbT-S.vy)*Math.min(1,dt*2);
+        S.y+=S.vy*dt; S.x+=S.speed*f[0]*dt; S.z+=S.speed*f[1]*dt;
+        S.pitch=Math.max(-0.35,Math.min(0.4,Math.atan2(S.vy,Math.max(S.speed,4))*1.2));
+        if(S.y<=0){ S.y=0; S.onGround=true; S.vy=0; }
+      }
+    }else{
+      const vmax=(course()==='hhigh')?9:cr.vmax, vv=(course()==='hhigh')?4:cr.vv;
+      const tx=(c.elev*f[0]+c.ail*r[0])*vmax, tz=(c.elev*f[1]+c.ail*r[1])*vmax;
+      const vyT=c.thr*vv;
+      S.vy+=(vyT-S.vy)*Math.min(1,dt*3);
+      S.y=Math.max(0,S.y+S.vy*dt);
+      S.onGround=S.y<0.02;
+      if(S.onGround){ S.vx*=0.6; S.vz*=0.6; if(S.vy<0) S.vy=0; }
+      else{ S.vx+=(tx-S.vx)*Math.min(1,dt*2.2); S.vz+=(tz-S.vz)*Math.min(1,dt*2.2); }
+      S.x+=S.vx*dt; S.z+=S.vz*dt;
+      S.yaw+=c.rud*cr.yawR*dt*(S.onGround?0:1);
+      S.pitch=-c.elev*0.22; S.bank=c.ail*0.22;
+    }
+  }
+
+  /* ---- 判定・表示 ---- */
+  function updateStats(dt){
+    const z=judge(course(),S.x,S.z,S.y);
+    if(z!==stats.zone){ if(z==='d') stats.d++; if(z==='f') stats.f++; stats.zone=z; }
+    if(z==='d') stats.dT+=dt; if(z==='f') stats.fT+=dt;
+    const sp=(curVehicle==='plane')?S.speed:Math.hypot(S.vx,S.vz);
+    const m=Math.floor(timer/60), s=Math.floor(timer%60);
+    $('pilotStats').textContent=m+':'+String(s).padStart(2,'0')+'｜高度 '+S.y.toFixed(1)+'m｜速度 '+sp.toFixed(1)+'m/s'+
+      (course()==='hhigh'?'':'｜イエロー '+stats.d+'回('+stats.dT.toFixed(0)+'s)・レッド '+stats.f+'回('+stats.fT.toFixed(0)+'s)');
+    const ze=$('pilotZone');
+    ze.className='z'+(z==='ok'?'':' '+z); ze.textContent=z==='d'?'イエローゾーン進入！経路へ復帰':(z==='f'?'レッドゾーン進入！':'');
+  }
+  function updateGhost(dt){
+    if(!ghost) return;
+    ghost.visible=$('pilotGhost').checked;
+    if(!ghost.visible) return;
+    const sc=curScenario(); const total=totalDur(sc);
+    ghostT+=dt; if(ghostT>total) ghostT=0;
+    const g=samplePose(sc,ghostT);
+    ghost.position.set(g.x,g.y,g.z);
+    if(curVehicle==='plane'){
+      const g2=samplePose(sc,Math.min(total,ghostT+0.06));
+      const dx=g2.x-g.x, dz=g2.z-g.z; if(Math.hypot(dx,dz)>0.01) ghost.rotation.y=Math.atan2(-dx,-dz);
+    }else if(g.rotAbs!==null&&g.rotAbs!==undefined) ghost.rotation.y=-g.rotAbs;
+    else if(g.yawT!==null&&g.yawT!==undefined) ghost.rotation.y=g.yawT;
+  }
+
+  const PSEG={t:'pilot', label:'', z:{}};
+  P.pose=function(dt){
+    if(curScenario()!==lastSc || ghostV!==curVehicle){ lastSc=curScenario(); resetState(); }
+    keyDrive(dt);
+    step(dt);
+    timer+=dt;
+    updateStats(dt); updateGhost(dt);
+    if(timer-trailT>0.05 && (S.y>0.05||S.onGround&&curVehicle==='plane'&&S.speed>1)){ trailT=timer; pushTrail(S.x,Math.max(S.y,0.15),S.z); }
+    const sp=vehicles[curVehicle].group;
+    if(curVehicle!=='plane'){ sp.rotation.x=S.pitch; sp.rotation.z=S.bank; }
+    PSEG.label='操縦体験モード：'+(GOAL[course()]||'');
+    PSEG.z=(course()==='hhigh')?{}:{f:1,d:1};
+    return {x:S.x, y:S.y, z:S.z, yawT:null, rotAbs:-S.yaw, seg:PSEG};
+  };
+  P.applyPlane=function(spec){
+    spec.group.rotation.y=S.yaw; yawCur=S.yaw;
+    spec.aux.attG.rotation.z=S.bank; spec.aux.attG.rotation.x=S.pitch;
+    if(spec.aux.prop) spec.aux.prop.rotation.z+=0.7*(0.2+S.speed/24);
+  };
+
+  /* ---- モード切替 ---- */
+  let prevCam='bird', hudWasCollapsed=false;
+  P.toggle=function(){ P.active?P.exit():P.enter(); };
+  P.enter=function(){
+    playing=false; document.getElementById('btnPlay').textContent='▶ 再生';
+    P.active=true; lastSc=null;
+    document.getElementById('stageBox').classList.add('pilot');
+    document.getElementById('btnPilot').textContent='🎮 体験中（終了）';
+    prevCam=camMode; camMode='follow'; document.getElementById('viewSel').value='follow';
+    resetState(); drawSticks(); forceRender=true;
+  };
+  P.exit=function(){
+    P.active=false;
+    document.getElementById('stageBox').classList.remove('pilot');
+    document.getElementById('btnPilot').textContent='🎮 操縦体験';
+    if(ghost){ scene.remove(ghost); ghost=null; }
+    const sp=vehicles[curVehicle].group; sp.rotation.x=0; sp.rotation.z=0;
+    camMode=prevCam; document.getElementById('viewSel').value=camMode;
+    resetAnim();
+  };
+  P.reset=function(){ resetState(); drawSticks(); forceRender=true; };
+
+  /* ---- キーボード ---- */
+  window.addEventListener('keydown',e=>{
+    if(!P.active) return;
+    const tg=e.target; if(tg&&/INPUT|SELECT|TEXTAREA/.test(tg.tagName)) return;
+    const k=e.key.toLowerCase(); keys[k]=true;
+    if(k==='r'){ P.reset(); }
+    if(/^arrow/.test(k)||k===' '||k==='w'||k==='s'||k==='a'||k==='d') e.preventDefault();
+  });
+  window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+  window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; });
+
+  P.debug=()=>({S:{...S}, st:JSON.parse(JSON.stringify(st)), keys:{...keys}, craft:craft(), vehicle:curVehicle, course:course()});
+  bindStick('L'); bindStick('R');
+  return P;
+})();
+</script>
 <script>
 window.FX_CFG={
   pos:()=>vehicles[curVehicle].group.position,
@@ -1959,6 +2241,6 @@ window.FX_CFG={
   skyR:3800
 };
 </script>
-<script src="vendor/fx.js?v=1"></script>
+<script src="vendor/fx.js?v=2"></script>
 </body>
 </html>
