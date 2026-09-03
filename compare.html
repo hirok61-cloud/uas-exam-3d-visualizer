@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一等・二等 並走比較｜3Dフライトビジュアライザー</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjMwIiBmaWxsPSIjMTczMzVmIi8+CjxnIHN0cm9rZT0iI2VhZjFmYiIgc3Ryb2tlLXdpZHRoPSIzLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CjxsaW5lIHgxPSIxOSIgeTE9IjE5IiB4Mj0iNDUiIHkyPSI0NSIvPgo8bGluZSB4MT0iNDUiIHkxPSIxOSIgeDI9IjE5IiB5Mj0iNDUiLz4KPC9nPgo8Y2lyY2xlIGN4PSIxOSIgY3k9IjE5IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPGNpcmNsZSBjeD0iNDUiIGN5PSIxOSIgcj0iNi40IiBmaWxsPSIjZTg2NDJjIi8+CjxjaXJjbGUgY3g9IjE5IiBjeT0iNDUiIHI9IjYuNCIgZmlsbD0iI2U4NjQyYyIvPgo8Y2lyY2xlIGN4PSI0NSIgY3k9IjQ1IiByPSI2LjQiIGZpbGw9IiNlODY0MmMiLz4KPHJlY3QgeD0iMjUuNSIgeT0iMjUuNSIgd2lkdGg9IjEzIiBoZWlnaHQ9IjEzIiByeD0iMy4yIiBmaWxsPSIjZmZmZmZmIi8+Cjwvc3ZnPgo=">
+<meta name="description" content="同じ科目の一等・二等を横並びで同時再生し、高度・位置安定機能・区画・手順の違いを比較します。">
+<link rel="canonical" href="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/compare">
+<meta property="og:type" content="website">
+<meta property="og:title" content="一等・二等 並走比較｜3Dフライトビジュアライザー">
+<meta property="og:description" content="同じ科目の一等・二等を横並びで同時再生し、高度・位置安定機能・区画・手順の違いを比較します。">
+<meta property="og:url" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/compare">
+<meta property="og:image" content="https://uas-exam-3d-visualizer.hiro-k61.workers.dev/assets/ogp.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --navy:#17335f; --navy-d:#0f2547; --teal:#0e6e63;
+    --ink:#1c2430; --paper:#f2f4f7; --line:#d5dbe4; --danger:#d63a2f;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"Meiryo","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; background:var(--paper); color:var(--ink); line-height:1.7;}
+  header.doc{background:linear-gradient(135deg,var(--navy-d),var(--navy)); color:#fff; padding:22px 28px 16px;}
+  header.doc .kicker{font-size:11px; letter-spacing:.18em; opacity:.75; margin-bottom:6px;}
+  header.doc h1{font-size:20px; font-weight:700; letter-spacing:.02em;}
+  header.doc .sub{font-size:12.5px; opacity:.85; margin-top:6px;}
+  .pagenav{background:var(--navy-d); padding:0 28px; display:flex; gap:2px; flex-wrap:wrap;}
+  .pagenav a{color:#b9c7dd; text-decoration:none; font-size:12.5px; font-weight:700; padding:9px 16px; border-radius:6px 6px 0 0;}
+  .pagenav a:hover{background:rgba(255,255,255,.10); color:#fff;}
+  .pagenav a.on{background:var(--paper); color:var(--navy);}
+  .wrap{max-width:1400px; margin:0 auto; padding:0 16px 40px;}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; margin-top:16px; padding:12px 14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:13px;}
+  .panel select,.panel button{font-family:inherit; font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer;}
+  .panel button.primary{background:var(--ink); color:#fff; border-color:var(--ink); font-weight:700;}
+  .panel .spacer{flex:1;}
+  .hint{font-size:11.5px; color:#6b7583;}
+  .seek{flex:1 1 260px; display:flex; align-items:center; gap:10px; min-width:200px;}
+  .seek .tr{position:relative; flex:1; height:6px; border-radius:3px; background:#dde3ec; cursor:pointer; touch-action:none;}
+  .seek .fi{position:absolute; left:0; top:0; bottom:0; width:0; border-radius:3px; background:#4fa3ff;}
+  .seek .kn{position:absolute; top:50%; left:0; width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid #4fa3ff; transform:translate(-50%,-50%);}
+  .seek .tm{font-size:12px; font-variant-numeric:tabular-nums; color:#414c5b; white-space:nowrap;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px;}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr;} }
+  .pane{background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .pane .cap{display:flex; align-items:center; gap:10px; padding:9px 14px; font-size:13px; font-weight:700; color:#fff;}
+  .pane.c1 .cap{background:var(--navy);} .pane.c2 .cap{background:var(--teal);}
+  .pane .cap small{font-weight:400; opacity:.85;}
+  .pane iframe{display:block; width:100%; height:62vh; min-height:360px; border:0; background:#0b1626;}
+  @media (max-width:900px){ .pane iframe{height:52vh;} }
+  .note{font-size:11.5px; color:#6b7583; margin-top:12px;}
+</style>
+</head>
+<body>
+<header class="doc">
+  <div class="kicker">無人航空機操縦士 実地試験・更新講習 3Dフライトビジュアライザー</div>
+  <h1>一等・二等 並走比較</h1>
+  <div class="sub">同じ科目の一等（左）と二等（右）を同時に再生します。高度・位置安定機能（GNSS等）・区画の大きさ・手順の違いを横並びで確認できます。再生・停止・シークは両方に同時に効きます。</div>
+</header>
+<nav class="pagenav">
+  <a href="index.html">機種一覧</a>
+  <a href="multirotor.html">実地試験：マルチローター</a>
+  <a href="helicopter.html">実地試験：ヘリコプター</a>
+  <a href="airplane.html">実地試験：飛行機</a>
+  <a href="airspace.html">飛行機：空域計算3D</a>
+  <a href="renewal.html">更新講習</a>
+  <a href="compare.html" class="on">一等・二等比較</a>
+</nav>
+
+<div class="wrap">
+  <div class="panel">
+    <label>科目 <select id="pairSel"></select></label>
+    <button class="primary" id="btnPlay">▶ 同時再生</button>
+    <button id="btnReset">⟲ 最初から</button>
+    <label>速度
+      <select id="speed">
+        <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+      </select>
+    </label>
+    <div class="seek"><div class="tr" id="tr"><div class="fi" id="fi"></div><div class="kn" id="kn"></div></div><span class="tm" id="tm">0:00 / 0:00</span></div>
+    <label class="hint">読み上げ <select id="speak"><option value="off">OFF</option><option value="left">左（一等）のみ</option><option value="right">右（二等）のみ</option></select></label>
+  </div>
+
+  <div class="grid">
+    <div class="pane c1"><div class="cap">一等 <small id="capL">－</small></div><iframe id="ifL" title="一等"></iframe></div>
+    <div class="pane c2"><div class="cap">二等 <small id="capR">－</small></div><iframe id="ifR" title="二等"></iframe></div>
+  </div>
+  <p class="note">※ 各画面内でもドラッグで視点回転・ホイールで拡大縮小ができます。科目の長さは一等・二等で異なるため、短い方が先に終了します。対応する科目が片方にしかないもの（一等のピルエット・高高度飛行、二等の異常事態など）は、性質の近い科目を組にしています。</p>
+</div>
+
+<script>
+"use strict";
+/* 一等・二等の対応表（page, 左=一等のハッシュ, 右=二等のハッシュ） */
+const PAIRS=[
+  {g:'マルチローター', name:'スクエア飛行（一等：高度変化あり／二等：高度一定）', page:'multirotor.html', l:'1-0', r:'2-0'},
+  {g:'マルチローター', name:'8の字飛行（一等：緊急着陸あり／二等：連続2周）', page:'multirotor.html', l:'1-2', r:'2-1'},
+  {g:'マルチローター', name:'緊急着陸系（一等：8の字中の緊急着陸／二等：異常事態における飛行）', page:'multirotor.html', l:'1-2', r:'2-2'},
+  {g:'マルチローター', name:'夜間 スクエア飛行', page:'multirotor.html', l:'1-3', r:'2-3'},
+  {g:'マルチローター', name:'目視外 スクエア飛行', page:'multirotor.html', l:'1-5', r:'2-5'},
+  {g:'マルチローター', name:'目視外 異常事態における飛行', page:'multirotor.html', l:'1-6', r:'2-6'},
+  {g:'マルチローター', name:'25kg以上 スクエア飛行', page:'multirotor.html', l:'1-7', r:'2-7'},
+  {g:'マルチローター', name:'25kg以上 円周飛行', page:'multirotor.html', l:'1-9', r:'2-8'},
+  {g:'ヘリコプター', name:'スクエア飛行（一等：5m⇄10m／二等：5m一定）', page:'helicopter.html', l:'1-0', r:'2-0'},
+  {g:'ヘリコプター', name:'円周飛行（直径16m）', page:'helicopter.html', l:'1-1', r:'2-1'},
+  {g:'ヘリコプター', name:'一等の高高度飛行 と 二等の異常事態における飛行', page:'helicopter.html', l:'1-2', r:'2-2'},
+  {g:'ヘリコプター', name:'夜間 スクエア飛行', page:'helicopter.html', l:'1-3', r:'2-3'},
+  {g:'ヘリコプター', name:'目視外 スクエア飛行', page:'helicopter.html', l:'1-4', r:'2-4'},
+  {g:'ヘリコプター', name:'目視外 位置安定機能異常事態における飛行', page:'helicopter.html', l:'1-5', r:'2-5'},
+  {g:'ヘリコプター', name:'25kg以上 スクエア飛行', page:'helicopter.html', l:'1-6', r:'2-6'},
+  {g:'ヘリコプター', name:'25kg以上 円周飛行', page:'helicopter.html', l:'1-7', r:'2-7'},
+  {g:'飛行機', name:'周回飛行（一等：姿勢制御OFF／二等：ON）', page:'airplane.html', l:'1-0', r:'2-0'},
+  {g:'飛行機', name:'8の字飛行（一等：緊急着陸あり／二等：B地点まで周回→着陸）', page:'airplane.html', l:'1-1', r:'2-1'},
+  {g:'飛行機', name:'夜間 自動操縦の周回飛行', page:'airplane.html', l:'1-2', r:'2-2'},
+  {g:'飛行機', name:'目視外 自動操縦の周回飛行', page:'airplane.html', l:'1-3', r:'2-3'},
+  {g:'飛行機', name:'25kg以上 自動操縦の周回飛行', page:'airplane.html', l:'1-4', r:'2-4'},
+  {g:'更新講習', name:'マルチローター（一等：8の字＋緊急着陸／二等：側方移動＋緊急着陸）', page:'renewal.html', l:'multi-1', r:'multi-2'},
+  {g:'更新講習', name:'ヘリコプター（一等：高高度飛行／二等：側方移動＋緊急着陸）', page:'renewal.html', l:'heli-1', r:'heli-2'},
+  {g:'更新講習', name:'飛行機（一等：8の字継続＋緊急着陸／二等：周回→着陸）', page:'renewal.html', l:'plane-1', r:'plane-2'},
+];
+const $=id=>document.getElementById(id);
+const ifL=$('ifL'), ifR=$('ifR');
+const state={L:null,R:null};
+let playing=false, cur=0;
+
+// セレクト構築（機種ごとにグループ化）
+(function(){
+  const sel=$('pairSel'); let g=null, og=null;
+  PAIRS.forEach((p,i)=>{
+    if(p.g!==g){ g=p.g; og=document.createElement('optgroup'); og.label=g; sel.appendChild(og); }
+    const o=document.createElement('option'); o.value=i; o.textContent=p.name; og.appendChild(o);
+  });
+  const h=location.hash.replace('#',''); const idx=parseInt(h,10);
+  cur=(Number.isInteger(idx)&&PAIRS[idx])?idx:0;
+  sel.value=cur; sel.onchange=()=>{ cur=+sel.value; load(); };
+})();
+function speakParam(side){ const m=$('speak').value; return (m==='left'&&side==='L')||(m==='right'&&side==='R')?'&speak=cmd':''; }
+function load(){
+  const p=PAIRS[cur];
+  playing=false; syncPlay();
+  ifL.src=p.page+'?embed=1'+speakParam('L')+'#'+p.l;
+  ifR.src=p.page+'?embed=1'+speakParam('R')+'#'+p.r;
+  state.L=null; state.R=null;
+  try{ history.replaceState(null,'','#'+cur); }catch(e){}
+}
+function send(cmd,extra){
+  const m=Object.assign({type:'pe-cmd',cmd},extra||{});
+  [ifL,ifR].forEach(f=>{ try{ f.contentWindow.postMessage(m,'*'); }catch(e){} });
+}
+function syncPlay(){ $('btnPlay').textContent=playing?'⏸ 一時停止':'▶ 同時再生'; }
+$('btnPlay').onclick=()=>{ playing=!playing; send(playing?'play':'pause'); syncPlay(); };
+$('btnReset').onclick=()=>{ playing=false; send('reset'); syncPlay(); };
+$('speed').onchange=()=>send('speed',{v:parseFloat($('speed').value)});
+$('speak').onchange=()=>{
+  send('speak',{v:'off'});
+  const m=$('speak').value;
+  if(m==='left') ifL.contentWindow.postMessage({type:'pe-cmd',cmd:'speak',v:'cmd'},'*');
+  if(m==='right') ifR.contentWindow.postMessage({type:'pe-cmd',cmd:'speak',v:'cmd'},'*');
+};
+
+// 子からの状態（t/total/name）を受けてシークバーとキャプションを更新
+window.addEventListener('message',e=>{
+  const m=e.data; if(!m||m.type!=='pe-state') return;
+  const side=(e.source===ifL.contentWindow)?'L':(e.source===ifR.contentWindow)?'R':null;
+  if(!side) return;
+  state[side]=m;
+  const cap=$(side==='L'?'capL':'capR');
+  if(m.name && cap.textContent!==m.name) cap.textContent=m.name.replace(/^(一等_|二等_)/,'');
+  // 両方止まっていたら再生ボタンを戻す
+  if(playing && state.L && state.R && !state.L.playing && !state.R.playing){ playing=false; syncPlay(); }
+});
+function fmt(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+(function ui(){
+  requestAnimationFrame(ui);
+  const L=state.L, R=state.R; if(!L&&!R) return;
+  const total=Math.max(L?L.total:0, R?R.total:0);
+  const t=Math.max(L?L.t:0, R?R.t:0);
+  const fr=total?Math.min(1,t/total):0;
+  $('fi').style.width=(fr*100)+'%'; $('kn').style.left=(fr*100)+'%';
+  $('tm').textContent=fmt(t)+' / '+fmt(total);
+})();
+// シークバー（親）：両方へ同じ絶対時刻を送る
+(function(){
+  const tr=$('tr'); let drag=false, was=false;
+  function at(e){ const r=tr.getBoundingClientRect(); if(!(r.width>0)) return null; return Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)); }
+  function seekTo(f){ const total=Math.max(state.L?state.L.total:0, state.R?state.R.total:0); send('seek',{t:f*total}); }
+  tr.addEventListener('pointerdown',e=>{ try{tr.setPointerCapture(e.pointerId);}catch(err){} drag=true; was=playing; if(playing){ send('pause'); } const f=at(e); if(f!==null) seekTo(f); });
+  tr.addEventListener('pointermove',e=>{ if(!drag) return; const f=at(e); if(f!==null) seekTo(f); });
+  const end=()=>{ if(!drag) return; drag=false; if(was){ send('play'); playing=true; syncPlay(); } };
+  tr.addEventListener('pointerup',end); tr.addEventListener('pointercancel',end);
+})();
+window.addEventListener('keydown',e=>{
+  if(e.target&&/INPUT|SELECT|BUTTON|TEXTAREA/.test(e.target.tagName)) return;
+  if(e.code==='Space'){ e.preventDefault(); $('btnPlay').click(); }
+});
+load();
+</script>
+</body>
+</html>
