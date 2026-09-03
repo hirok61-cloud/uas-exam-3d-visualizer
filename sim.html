@@ -35,6 +35,12 @@
   select.tb{appearance:none; -webkit-appearance:none; padding-right:22px;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23fff'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; background-size:9px;}
   #top .spacer{flex:1;}
+  body.pseudo-fs #top > *:not(#btnFS){display:none;}
+  body.pseudo-fs #top{background:none; justify-content:flex-end;}
+  body.pseudo-fs #keys{display:none;}
+  #resCtl{display:inline-flex; align-items:center; gap:4px; padding:3px 6px 3px 10px;}
+  #resCtl button{border:1px solid var(--line); background:rgba(255,255,255,.1); color:#fff; width:26px; height:24px; border-radius:6px; cursor:pointer; font-size:14px; line-height:1;}
+  #resCtl b{min-width:38px; text-align:center; font-variant-numeric:tabular-nums;}
   a.tb{text-decoration:none;}
 
   /* ---- 計器 HUD ---- */
@@ -111,6 +117,7 @@
     <option value="fpv">機体視点</option>
     <option value="orbit">俯瞰（ドラッグ）</option>
   </select>
+  <span class="tb" id="resCtl" title="描画解像度（−／＋で変更）">解像度 <button id="resDn">−</button><b id="resVal">1.0×</b><button id="resUp">＋</button></span>
   <button class="tb" id="btnWind">風</button>
   <button class="tb" id="btnSound">🔇 音</button>
   <button class="tb" id="btnSet">設定</button>
@@ -150,7 +157,7 @@
     <button data-p="breezy">やや強め（4m/s＋突風）</button>
     <button data-p="rough">荒れ（6m/s＋突風＋乱流）</button>
   </div>
-  <p>更新講習用シミュレーターのガイダンスでは<b>2〜3m/sの一定風</b>が望ましいとされています（当て舵の技能確認のため）。突風・乱流は練習用の追加要素です。吹き流しと草のなびきで現在の風を確認できます。</p>
+  <p>更新講習用シミュレーターのガイダンスでは<b>2〜3m/sの一定風</b>が望ましいとされています（当て舵の技能確認のため）。突風・乱流は練習用の追加要素です。吹き流しで現在の風を確認できます。</p>
 </div>
 
 <div class="panel" id="pSet">
@@ -159,8 +166,9 @@
   <select id="modeSel"><option value="2">モード2（左：スロットル/ラダー・右：エレベーター/エルロン）</option><option value="1">モード1（左：エレベーター/ラダー・右：スロットル/エルロン）</option></select>
   <label>最大傾斜角（機敏さ） <span class="val" id="vTilt"></span></label><input type="range" id="sTilt" min="15" max="40" step="1">
   <label>スティック感度 <span class="val" id="vExpo"></span></label><input type="range" id="sExpo" min="0" max="0.7" step="0.05">
-  <label>描画品質</label>
-  <select id="qSel"><option value="auto">自動</option><option value="high">高</option><option value="low">軽量</option></select>
+  <label>描画解像度 <span class="val" id="vRes"></span></label><input type="range" id="sRes" min="0.5" max="3" step="0.25">
+  <label style="display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="cAutoRes"> 動作が重いとき自動で解像度を下げる</label>
+  <p>解像度は画面の物理ピクセルに対する倍率です（1.0×＝等倍、2.0×＝Retina相当、3.0×＝超高精細）。上げるほど滑らかですが端末の負荷が増えます。上部バーの「解像度 −／＋」でも変更できます。</p>
   <p>機体：4アーム・約1.4kg・対角350mm級（ガイダンス推奨）。位置安定ONではスティックを離すとその場に止まり、OFF（ATTI）では姿勢は水平に戻るが風と慣性で流されます。強い衝撃や大きく傾いた接地は墜落です。</p>
 </div>
 
@@ -197,33 +205,55 @@ const G=9.8, DEG=Math.PI/180;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 /* ---------- 設定（保存） ---------- */
-const CFG={ mode:2, tilt:28, expo:0.3, quality:'auto', sound:false, view:'pilot', gnss:true,
+const CFG={ mode:2, tilt:28, expo:0.3, quality:'auto', res:Math.min(2,window.devicePixelRatio||1), autoRes:true, sound:false, view:'pilot', gnss:true,
   wind:{mean:2.5, dir:0, gust:0, turb:0.15, dirVar:10} };
 try{ const sv=JSON.parse(localStorage.getItem('uasSimCfg')||'{}'); const w0={...CFG.wind}; Object.assign(CFG, sv); CFG.wind=Object.assign(w0, sv.wind||{}); for(const k in CFG.wind){ if(!Number.isFinite(CFG.wind[k])) CFG.wind[k]=w0[k]; } }catch(e){}
 function saveCfg(){ try{ localStorage.setItem('uasSimCfg', JSON.stringify(CFG)); }catch(e){} }
 
 /* ---------- コース定義（ゾーン判定・描画） ---------- */
 const COURSES={
-  free:{name:'自由飛行（飛行場）', pad:[0,-8], stand:0, alt:null, goal:'自由飛行', desc:'滑走路脇のパッドから離陸してみましょう。風パネルで風を変えられます。'},
-  square1:{name:'実地試験 一等：高度変化を伴うスクエア（1.5m⇄3.5m）', pad:[0,-2.5], stand:8.5, alt:'1.5→3.5m',
-    goal:'スクエア飛行（一等）', desc:'A→B→C→D→E→A。B–C間で1.5→3.5mへ上昇、D–E間で下降。機首は進行方向。',
-    judge:(x,z)=>(Math.abs(x)<1&&z<0.5&&z>-5.5)?0:distRect(x,z,-6.5,-5,6.5,0), d:1.5, f:2.5, draw:'square'},
-  square2:{name:'実地試験 二等：スクエア（高度3.5m一定）', pad:[0,-2.5], stand:8.5, alt:'3.5m',
-    goal:'スクエア飛行（二等）', desc:'A→B→C→D→E→A を高度3.5mで。機首は進行方向。',
-    judge:(x,z)=>(Math.abs(x)<1&&z<0.5&&z>-5.5)?0:distRect(x,z,-6.5,-5,6.5,0), d:1.5, f:2.5, draw:'square'},
-  fig8:{name:'実地試験／更新講習：8の字飛行（円直径5m・高度1.5m）', pad:[0,0], stand:6.5, alt:'1.5m',
-    goal:'8の字飛行', desc:'右円→左円を機首を進行方向に向けて連続周回。一等は講師の口頭指示で緊急着陸。',
-    judge:(x,z)=>Math.min(Math.abs(Math.hypot(x-2.5,z)-2.5), Math.abs(Math.hypot(x+2.5,z)-2.5)), d:1.5, f:2.5, draw:'fig8'},
-  pirouette:{name:'実地試験 一等：ピルエットホバリング（高度3.5m）', pad:[0,0], stand:6.5, alt:'3.5m',
-    goal:'ピルエットホバリング', desc:'高度3.5mでその場に留まり、約20秒で1回転（ラダー）。半径1.5m/2.5mの同心円で判定。',
+  free:{grp:'', name:'自由飛行（飛行場）', pad:[0,-8], stand:0, alt:null, goal:'自由飛行', desc:'滑走路脇のパッドから離陸してみましょう。風パネルで風を変えられます。'},
+  // ---- 一等 実地試験（GNSS等OFF）----
+  sq1:{grp:'一等 実地試験（位置安定OFF）', name:'① 高度変化を伴うスクエア飛行（1.5m⇄3.5m）', pad:[0,-2.5], stand:8.5, alt:'1.5→3.5m', gnss:false,
+    goal:'一等① 高度変化を伴うスクエア飛行', desc:'H→A→B→C→D→E→A→H。B–C間で1.5→3.5mへ上昇、D–E間で下降。機首は進行方向。制限6分。',
+    judge:sqJudge(1.5), d:1.5, f:2.5, draw:'square'},
+  pir1:{grp:'一等 実地試験（位置安定OFF）', name:'② ピルエットホバリング（高度3.5m）', pad:[0,0], stand:6.5, alt:'3.5m', gnss:false,
+    goal:'一等② ピルエットホバリング', desc:'高度3.5mでその場に留まり、約20秒で1回転（16秒未満・26秒以上は減点）。半径1.5m/2.5mの同心円で判定。',
     judge:(x,z)=>Math.hypot(x,z), d:1.5, f:2.5, draw:'pirouette'},
-  line:{name:'実地試験 二等／更新講習：異常事態における飛行（直線13m・高度3.5m）', pad:[0,-2.5], stand:8.5, alt:'3.5m',
-    goal:'直線上の側方移動', desc:'機首を前方に固定したまま E–A–B（13m）を側方に往復。緊急着陸の指示でH地点へ。',
-    judge:(x,z)=>(Math.abs(x)<1&&z<0.5&&z>-3.5)?0:Math.hypot(Math.max(0,Math.abs(x)-6.5), z), d:1.5, f:2.5, draw:'line'},
-  circle25:{name:'実地試験 25kg以上：円周飛行（直径10m・高度5m）', pad:[0,5], stand:11, alt:'5m',
-    goal:'円周飛行（直径10m）', desc:'中心のパイロンを回る直径10mの円周を、機首を進行方向に向けて正逆2周ずつ。',
+  fig8e:{grp:'一等 実地試験（位置安定OFF）', name:'③ 緊急着陸を伴う8の字飛行（高度1.5m）', pad:[0,0], stand:6.5, alt:'1.5m', gnss:false,
+    goal:'一等③ 緊急着陸を伴う8の字飛行', desc:'右円→左円を機首を進行方向に向けて連続周回。試験員の口頭指示で最短経路でH地点へ緊急着陸。制限5分。',
+    judge:fig8Judge, d:1.5, f:2.5, draw:'fig8'},
+  // ---- 二等 実地試験 ----
+  sq2:{grp:'二等 実地試験（位置安定ON）', name:'① スクエア飛行（高度3.5m一定）', pad:[0,-2.5], stand:8.5, alt:'3.5m', gnss:true,
+    goal:'二等① スクエア飛行', desc:'H→A→B→C→D→E→A→H を高度3.5m一定で。機首は進行方向。制限8分。',
+    judge:sqJudge(1.5), d:1.5, f:2.5, draw:'square'},
+  fig8b:{grp:'二等 実地試験（位置安定ON）', name:'② 8の字飛行（連続2周・高度1.5m）', pad:[0,0], stand:6.5, alt:'1.5m', gnss:true,
+    goal:'二等② 8の字飛行', desc:'右円→左円の8の字を機首を進行方向に向けて連続2周し、H地点に着陸。制限8分。',
+    judge:fig8Judge, d:1.5, f:2.5, draw:'fig8'},
+  line2:{grp:'二等 実地試験（位置安定ON）', name:'③ 異常事態における飛行（直線・高度3.5m・この科目のみ位置安定OFF）', pad:[0,-2.5], stand:8.5, alt:'3.5m', gnss:false,
+    goal:'二等③ 異常事態における飛行', desc:'位置安定OFFで離陸し、機首を前方に固定したまま E–A–B（13m）を側方に1往復以上。緊急着陸の指示で最短経路でH地点へ。制限6分。',
+    judge:lineJudge(6.5,3.5), d:1.5, f:2.5, draw:'line'},
+  // ---- 限定変更（25kg以上）----
+  sq25:{grp:'限定変更（25kg以上）', name:'高度変化を伴うスクエア飛行（5m⇄10m）', pad:[0,-2.5], stand:16, alt:'5→10m', gnss:false,
+    goal:'25kg スクエア飛行', desc:'B–C間で5→10mへ上昇、D–E間で下降。減点区画2.5m・不合格区画6m。',
+    judge:sqJudge(2.5), d:2.5, f:6, draw:'square'},
+  pir25:{grp:'限定変更（25kg以上）', name:'ピルエットホバリング（高度5m）', pad:[0,0], stand:11, alt:'5m', gnss:false,
+    goal:'25kg ピルエットホバリング', desc:'高度5mでその場に留まり約20秒で1回転。半径2.5m/6mの同心円で判定。',
+    judge:(x,z)=>Math.hypot(x,z), d:2.5, f:6, draw:'pirouette'},
+  circle25:{grp:'限定変更（25kg以上）', name:'円周飛行（直径10m・高度5m）', pad:[0,5], stand:11, alt:'5m', gnss:false,
+    goal:'25kg 円周飛行（直径10m）', desc:'中心のパイロンを回る直径10mの円周を、機首を進行方向に向けて正逆2周ずつ。一等は緊急着陸あり。',
     judge:(x,z)=>Math.abs(Math.hypot(x,z)-5), d:2.5, f:6, draw:'circle25'},
+  // ---- 更新講習 ----
+  r_fig8:{grp:'更新講習（実地講習）', name:'一等マルチ：8の字飛行＋緊急着陸（高度1.5m）', pad:[0,0], stand:6.5, alt:'1.5m', gnss:false,
+    goal:'更新講習 一等：8の字＋緊急着陸', desc:'GNSS等OFFで離陸→8の字を連続→講師の口頭指示で最短ルートで着陸。イエロー進入は講師の指示で経路復帰。',
+    judge:fig8Judge, d:1.5, f:2.5, draw:'fig8'},
+  r_line:{grp:'更新講習（実地講習）', name:'二等マルチ：側方移動＋緊急着陸（高度3.5m）', pad:[0,-2.5], stand:8.5, alt:'3.5m', gnss:false,
+    goal:'更新講習 二等：側方移動＋緊急着陸', desc:'GNSS等OFFで離陸→機首前方固定で E–A–B を側方移動し続ける→口頭指示で最短経路で緊急着陸。',
+    judge:lineJudge(6.5,3.5), d:1.5, f:2.5, draw:'line'},
 };
+function sqJudge(dIn){ return (x,z)=>(Math.abs(x)<1&&z<0.5&&z>-5.5)?0:distRect(x,z,-6.5,-5,6.5,0); }
+function fig8Judge(x,z){ return Math.min(Math.abs(Math.hypot(x-2.5,z)-2.5), Math.abs(Math.hypot(x+2.5,z)-2.5)); }
+function lineJudge(half,corr){ return (x,z)=>(Math.abs(x)<1&&z<0.5&&z>-corr)?0:Math.hypot(Math.max(0,Math.abs(x)-half), z); }
 function distRect(x,z,x0,z0,x1,z1){ // 長方形の辺（経路）からの距離
   const dx=Math.max(x0-x, 0, x-x1), dz=Math.max(z0-z, 0, z-z1);
   if(dx>0||dz>0) return Math.hypot(dx,dz);
@@ -312,15 +342,6 @@ function buildAirfield(){
   // パイロン（滑走路端・飛行場の目印）
   const cone=new THREE.ConeGeometry(0.3,0.8,5), coneMat=lamb(0xe8642c);
   [[-46,-36],[46,-36],[-46,-20],[46,-20],[-20,20],[20,20],[0,-60],[-30,-90],[30,-90]].forEach(p=>{ const c=new THREE.Mesh(cone,coneMat); c.position.set(p[0],0.4,p[1]); c.castShadow=true; world.add(c); });
-  // 草（InstancedMesh・風でなびく）
-  const N=900; const bladeGeo=new THREE.PlaneGeometry(0.16,0.75); bladeGeo.translate(0,0.375,0);
-  const grass=new THREE.InstancedMesh(bladeGeo, new THREE.MeshLambertMaterial({color:0x7fb26b, side:THREE.DoubleSide}), N);
-  const dummy=new THREE.Object3D(); const gInfo=[];
-  for(let i=0;i<N;i++){ const r=6+Math.random()*80, a=Math.random()*Math.PI*2; let x=Math.cos(a)*r, z=Math.sin(a)*r;
-    if(Math.abs(z+28)<8&&Math.abs(x)<48){ z+=20; }
-    const rot=Math.random()*Math.PI, s=0.7+Math.random()*0.8; gInfo.push({x,z,rot,s,ph:Math.random()*6.28});
-    dummy.position.set(x,0,z); dummy.rotation.set(0,rot,0); dummy.scale.set(s,s,s); dummy.updateMatrix(); grass.setMatrixAt(i,dummy.matrix); }
-  grass.instanceMatrix.setUsage(THREE.DynamicDrawUsage); world.add(grass); world.userData.grass={mesh:grass,info:gInfo,dummy};
   // 吹き流し
   const sock=new THREE.Group(); sock.position.set(14,0,-14);
   const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,3.2,8), lamb(0xdfe3e8)); pole.position.y=1.6; pole.castShadow=true; sock.add(pole);
@@ -376,8 +397,8 @@ function buildCourse(c){
     const P=[[0,0],[6.5,0],[6.5,-5],[-6.5,-5],[-6.5,0],[0,0]].map(p=>new THREE.Vector3(p[0],0.07,p[1]));
     courseGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(P), new THREE.LineBasicMaterial({color:PATH})));
     courseGroup.add(bandRect([px0-f,pz0-f,px1+f,pz1+f],[px0-d,pz0-d,px1+d,pz1+d],YEL,0.2));
-    courseGroup.add(bandRect([-6.5+d,-5+d,-1,-d],null,YEL,0.2)); courseGroup.add(bandRect([1,-5+d,6.5-d,-d],null,YEL,0.2));   // H⇄A回廊は除外
-    courseGroup.add(rectOutline(px0-d,pz0-d,px1+d,pz1+d,YELL,true)); courseGroup.add(rectOutline(-6.5+d,-5+d,6.5-d,-d,YELL,true));
+    if(-d>-5+d+0.5){ courseGroup.add(bandRect([-6.5+d,-5+d,-1,-d],null,YEL,0.2)); courseGroup.add(bandRect([1,-5+d,6.5-d,-d],null,YEL,0.2)); }   // 内側の減点島（H⇄A回廊は除外・25kgは島なし）
+    courseGroup.add(rectOutline(px0-d,pz0-d,px1+d,pz1+d,YELL,true)); if(-d>-5+d+0.5) courseGroup.add(rectOutline(-6.5+d,-5+d,6.5-d,-d,YELL,true));
     courseGroup.add(bandRect([px0-f-2.5,pz0-f-2.5,px1+f+2.5,pz1+f+2.5],[px0-f,pz0-f,px1+f,pz1+f],RED,0.15));
     courseGroup.add(rectOutline(px0-f,pz0-f,px1+f,pz1+f,RED,true));
     [['A',0,0],['B',6.5,0],['C',6.5,-5],['D',-6.5,-5],['E',-6.5,0]].forEach(p=>courseGroup.add(pylon(p[1],p[2],p[0])));
@@ -658,13 +679,6 @@ function envStep(dt,now){
   sock.rotation.y=to+Math.sin(now/1000*1.7)*0.06*Math.min(1,W.speed/2);
   const droop=clamp(1-W.speed/6,0,1);
   cone.rotation.z=-(0.15+droop*1.25)+Math.sin(now/1000*2.6)*0.06*Math.min(1,W.speed/3);
-  const gr=world.userData.grass; if(gr && (now|0)%2===0){
-    const lean=clamp(W.speed*0.07,0,0.6), lx=W.speed>0.01?W.cur.x/W.speed:0, lz=W.speed>0.01?W.cur.z/W.speed:0;
-    const d=gr.dummy;
-    for(let i=0;i<gr.info.length;i++){ const g=gr.info[i]; const sw=lean*(0.8+0.4*Math.sin(now/1000*2.2+g.ph));
-      d.position.set(g.x,0,g.z); d.rotation.set(sw*lz, g.rot, -sw*lx, 'XZY'); d.scale.set(g.s,g.s,g.s); d.updateMatrix(); gr.mesh.setMatrixAt(i,d.matrix); }
-    gr.mesh.instanceMatrix.needsUpdate=true;
-  }
   const spin=(S.armed||!S.onGround)&&!S.crashed ? (20+S.thrust*40) : 0;
   rotors.forEach((r,i)=>r.rotation.z+=dt*spin*(i%2?1:-1));
 }
@@ -683,7 +697,8 @@ function hudStep(){
 
 /* ---------- UI配線 ---------- */
 (function ui(){
-  const sel=$('courseSel'); for(const k in COURSES){ const o=document.createElement('option'); o.value=k; o.textContent=COURSES[k].name; sel.appendChild(o); }
+  const sel=$('courseSel'); let g=null, og=null; for(const k in COURSES){ const c=COURSES[k]; const o=document.createElement('option'); o.value=k; o.textContent=c.name;
+    if(!c.grp){ sel.appendChild(o); continue; } if(c.grp!==g){ g=c.grp; og=document.createElement('optgroup'); og.label=g; sel.appendChild(og); } og.appendChild(o); }
   sel.onchange=()=>setCourse(sel.value);
   $('btnGnss').onclick=()=>setGnss(!CFG.gnss);
   $('viewSel').value=CFG.view; $('viewSel').onchange=()=>{ CFG.view=$('viewSel').value; saveCfg(); };
@@ -708,22 +723,46 @@ function hudStep(){
   $('modeSel').value=CFG.mode; $('modeSel').onchange=()=>{ CFG.mode=+$('modeSel').value; setStickLabels(); saveCfg(); };
   $('sTilt').value=CFG.tilt; $('vTilt').textContent=CFG.tilt+'°'; $('sTilt').oninput=()=>{ CFG.tilt=+$('sTilt').value; $('vTilt').textContent=CFG.tilt+'°'; saveCfg(); };
   $('sExpo').value=CFG.expo; $('vExpo').textContent=Math.round(CFG.expo*100)+'%'; $('sExpo').oninput=()=>{ CFG.expo=+$('sExpo').value; $('vExpo').textContent=Math.round(CFG.expo*100)+'%'; saveCfg(); };
-  $('qSel').value=CFG.quality; $('qSel').onchange=()=>{ CFG.quality=$('qSel').value; applyQuality(); saveCfg(); };
+  $('sRes').value=CFG.res; $('cAutoRes').checked=!!CFG.autoRes;
+  $('sRes').oninput=()=>setRes(+$('sRes').value); $('cAutoRes').onchange=()=>{ CFG.autoRes=$('cAutoRes').checked; saveCfg(); };
+  $('resDn').onclick=()=>setRes(CFG.res-0.25); $('resUp').onclick=()=>setRes(CFG.res+0.25);
   setStickLabels(); setGnss(CFG.gnss);
 })();
 function togglePanel(id){ ['pWind','pSet','pHelp'].forEach(p=>{ if(p!==id) $(p).classList.remove('open'); }); $(id).classList.toggle('open'); }
 function setGnss(on){ CFG.gnss=on; hold=null; $('btnGnss').textContent='位置安定 '+(on?'ON':'OFF'); $('btnGnss').classList.toggle('on',on);
   $('hMode').textContent=on?'位置安定 ON':'ATTI（位置安定 OFF）'; $('hMode').className='badge '+(on?'on':'off'); saveCfg(); }
 function setCourse(k){ if(!COURSES[k]) k='free'; course=COURSES[k]; const cs=$('courseSel'); if(cs&&cs.value!==k) cs.value=k; buildCourse(course); $('goalT').textContent=course.goal; $('goalS').textContent=course.desc;
-  world.userData.pad.position.set(course.pad[0],0,course.pad[1]); resetState(); try{ history.replaceState(null,'','#'+k); }catch(e){} }
-function applyQuality(){ const q=CFG.quality; const pr=q==='high'?Math.min(2,devicePixelRatio):q==='low'?0.75:Math.min(1.5,devicePixelRatio); renderer.setPixelRatio(pr); renderer.shadowMap.enabled=(q!=='low'); needsResize=true; }
-function toggleFS(){
-  const el=document.documentElement;
-  if(document.fullscreenElement||document.webkitFullscreenElement){ (document.exitFullscreen||document.webkitExitFullscreen).call(document); return; }
-  const fn=el.requestFullscreen||el.webkitRequestFullscreen;
-  if(!fn){ showZone('d','この端末は全画面表示に対応していません（ホーム画面に追加すると全画面で使えます）'); return; }
-  try{ const p=fn.call(el); if(p&&p.then) p.then(()=>{ try{ screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} }).catch(()=>{}); }catch(e){}
+  world.userData.pad.position.set(course.pad[0],0,course.pad[1]); if(typeof course.gnss==='boolean') setGnss(course.gnss); resetState(); try{ history.replaceState(null,'','#'+k); }catch(e){} }
+function setRes(v){ CFG.res=clamp(Math.round(v*4)/4, 0.5, 3); applyQuality(); saveCfg(); }
+function applyQuality(){
+  const pr=CFG.res;
+  renderer.setPixelRatio(pr);
+  renderer.shadowMap.enabled=(pr>=0.75);
+  const sm=pr>=2?4096:(pr>=1.25?2048:1024);
+  if(sun.shadow.mapSize.x!==sm){ sun.shadow.mapSize.set(sm,sm); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; } }
+  needsResize=true;
+  const w=Math.round(canvas.clientWidth*pr), h=Math.round(canvas.clientHeight*pr);
+  $('resVal').textContent=pr.toFixed(2).replace(/0$/,'')+'×';
+  $('vRes').textContent=pr.toFixed(2).replace(/0$/,'')+'×（'+w+'×'+h+'）';
+  $('sRes').value=pr;
 }
+let pseudoFS=false;
+function setPseudoFS(on){ pseudoFS=on; document.body.classList.toggle('pseudo-fs',on); $('btnFS').textContent=on?'✕ 全画面を終了':'⛶ 全画面'; needsResize=true;
+  if(on) showZone('d','この環境ではブラウザの全画面が使えないため簡易全画面にしました（iPhoneは「ホーム画面に追加」で全画面になります）'); }
+function isFS(){ return !!(document.fullscreenElement||document.webkitFullscreenElement); }
+function lockLandscape(){ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} }
+function toggleFS(){
+  const doc=document, el=doc.documentElement;
+  if(isFS()){ try{ (doc.exitFullscreen||doc.webkitExitFullscreen).call(doc); }catch(e){} return; }
+  if(pseudoFS){ setPseudoFS(false); return; }
+  // Safari(macOS)は webkit プレフィックス版、iOS Safari は要素の全画面自体が無い
+  try{
+    if(el.requestFullscreen){ const p=el.requestFullscreen(); if(p&&p.then) p.then(lockLandscape).catch(()=>setPseudoFS(true)); return; }
+    if(el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); setTimeout(()=>{ if(!isFS()) setPseudoFS(true); },400); return; }
+  }catch(e){}
+  setPseudoFS(true);
+}
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{ $('btnFS').textContent=isFS()?'✕ 全画面を終了':'⛶ 全画面'; needsResize=true; }));
 window.addEventListener('keydown',e=>{
   if(e.metaKey||e.ctrlKey||e.altKey) return; const tg=e.target; if(tg&&/INPUT|SELECT|TEXTAREA/.test(tg.tagName)) return;
   const k=e.key.toLowerCase(); keys[k]=true; audioStart();
@@ -737,7 +776,7 @@ window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; });
 /* ---------- メインループ ---------- */
 let needsResize=true, prev=performance.now(), fpsAcc=0, fpsN=0, fpsT=0;
 applyQuality();
-{ const h=location.hash.replace('#',''); setCourse(COURSES[h]?h:'free'); }
+{ const alias={square1:'sq1',square2:'sq2',fig8:'fig8b',pirouette:'pir1',line:'line2'}; let h=location.hash.replace('#',''); h=alias[h]||h; setCourse(COURSES[h]?h:'free'); }
 $('loading').style.display='none';
 function loop(now){
   requestAnimationFrame(loop);
@@ -745,7 +784,7 @@ function loop(now){
   const w=canvas.clientWidth, h=canvas.clientHeight;
   if(needsResize||canvas.width!==Math.round(w*renderer.getPixelRatio())){ needsResize=false; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
   // 自動画質
-  if(CFG.quality==='auto'){ fpsAcc+=dt; fpsN++; fpsT+=dt; if(fpsT>2&&fpsN>10){ const avg=fpsAcc/fpsN; if(avg>1/40&&renderer.getPixelRatio()>0.75){ renderer.setPixelRatio(Math.max(0.75,renderer.getPixelRatio()-0.25)); needsResize=true; } fpsAcc=0; fpsN=0; fpsT=0; } }
+  if(CFG.autoRes){ fpsAcc+=dt; fpsN++; fpsT+=dt; if(fpsT>3&&fpsN>20){ const avg=fpsAcc/fpsN; if(avg>1/30&&CFG.res>0.75){ setRes(CFG.res-0.25); showZone('d','動作が重いため解像度を '+CFG.res+'× に下げました（設定で変更可）'); } fpsAcc=0; fpsN=0; fpsT=0; } }
   windStep(dt);
   keyDrive(dt); springSticks(dt);
   // 物理は固定ステップで安定化
